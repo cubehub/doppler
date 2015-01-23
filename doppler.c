@@ -27,9 +27,13 @@
 #include <string.h>
 #include <getopt.h>
 
+#include "predict.h"
+
 #define TLE_FILE_NAME_LEN 512
 #define TLE_NAME_FIELD_LEN 512
 #define OUTPUT_FILE_NAME_LEN 512
+
+#define SPEED_OF_LIGHT_M_S 299792458.
 
 typedef struct {
 	int arg_samplerate;
@@ -52,7 +56,7 @@ typedef struct {
 	double lon;
 	double alt;
 
-	int arg_freg_hz;
+	int arg_freq_hz;
 	int freq_hz;
 
 	int arg_output_file;
@@ -132,7 +136,7 @@ int main(int argc, char *argv[]) {
 				args.arg_doppler_mode = 1;
 				break;
 			case 'f' :
-				args.arg_freg_hz = 1;
+				args.arg_freq_hz = 1;
 				args.freq_hz = atoi(optarg);
 				break;
 			case 't' :
@@ -231,22 +235,37 @@ int main(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	if (args.arg_const_mode && args.arg_freg_hz) {
+	if (args.arg_const_mode && args.arg_freq_hz) {
 		printf("constant shift mode with %d Hz shift\n", args.freq_hz);
 	}
-	else if (args.arg_const_mode && !args.arg_freg_hz) {
+	else if (args.arg_const_mode && !args.arg_freq_hz) {
 		printf("constant shift mode also needs --freq (-f) argument to know how much to shift\n");
 		exit(EXIT_FAILURE);
 	}
 
 	// arg doppler mode
-	if (args.arg_doppler_mode && args.arg_freg_hz && args.arg_tlefile && args.arg_tlename && args.arg_lat && args.arg_lon && args.arg_alt) {
+	if (args.arg_doppler_mode && args.arg_freq_hz && args.arg_tlefile && args.arg_tlename && args.arg_lat && args.arg_lon && args.arg_alt) {
 		printf("doppler correction mode\n");
 		printf("\tTLE file: %s\n", args.tlefile);
 		printf("\tTLE name: %s\n", args.tlename);
 		printf("\tobserver location: lat %2.4f, lon %2.4f, alt %.1f m\n", args.lat, args.lon, args.alt);
+
+		sat_t sat;
+		geodetic_t observer_location;
+		double doppler;
+
+		observer_location.lat = Radians(args.lat);
+		observer_location.lon = Radians(args.lon);
+		observer_location.alt = args.alt / 1000.; // km!
+		observer_location.theta = 0.;
+
+		predict_load_tle(args.tlefile, args.tlename, &sat);
+		predict_calc(&sat, &observer_location, predict_get_current_daynum());
+		printf("\n[%s] jday: %12.5f, az:%6.1f, el:%6.1f, range rate:%6.3f km/s\n", args.tlename, sat.jul_utc, sat.az, sat.el, sat.range_rate);
+		doppler = (sat.range_rate * 1000 / SPEED_OF_LIGHT_M_S) * args.freq_hz * (-1.0);
+		printf("%3.3f MHz doppler: %6.1f Hz\n", args.freq_hz/1e+6, doppler);
 	}
-	if (args.arg_doppler_mode && !args.arg_freg_hz) {
+	if (args.arg_doppler_mode && !args.arg_freq_hz) {
 		printf("doppler mode also needs --freq (-f) parameter which specifies object transmission frequency, ");
 		printf("for example 'ESTCUBE 1' uses 437505000 Hz\n");
 	}
@@ -263,7 +282,7 @@ int main(int argc, char *argv[]) {
 		printf("for example use as --location (-l) lat=58.64560,lon=23.15163,alt=7.8\n");
 	}
 
-	if (args.arg_doppler_mode && (!args.arg_freg_hz || !args.arg_tlefile || !args.arg_tlename || !args.arg_lat || !args.arg_lon || !args.arg_alt)) {
+	if (args.arg_doppler_mode && (!args.arg_freq_hz || !args.arg_tlefile || !args.arg_tlename || !args.arg_lat || !args.arg_lon || !args.arg_alt)) {
 		printf("\ndoppler mode example command:\n\tdoppler -s 1024000 -d -f 437505000 -t cubesats.txt -n 'ESTCUBE 1' --location lat=58.64560,lon=23.15163,alt=7.8 -o dopplet.out\n");
 		exit(EXIT_FAILURE);
 	}

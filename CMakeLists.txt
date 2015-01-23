@@ -9,6 +9,7 @@ add_executable(doppler
 	libgpredict/sgpsdp/sgp_math.c
 	libgpredict/sgpsdp/sgp_in.c
 	libgpredict/sgpsdp/sgp_time.c
+	libgpredict/sgpsdp/sgp_obs.c
 )
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
