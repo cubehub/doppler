@@ -243,28 +243,7 @@ int main(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	// arg doppler mode
-	if (args.arg_doppler_mode && args.arg_freq_hz && args.arg_tlefile && args.arg_tlename && args.arg_lat && args.arg_lon && args.arg_alt) {
-		printf("doppler correction mode\n");
-		printf("\tTLE file: %s\n", args.tlefile);
-		printf("\tTLE name: %s\n", args.tlename);
-		printf("\tobserver location: lat %2.4f, lon %2.4f, alt %.1f m\n", args.lat, args.lon, args.alt);
-
-		sat_t sat;
-		geodetic_t observer_location;
-		double doppler;
-
-		observer_location.lat = Radians(args.lat);
-		observer_location.lon = Radians(args.lon);
-		observer_location.alt = args.alt / 1000.; // km!
-		observer_location.theta = 0.;
-
-		predict_load_tle(args.tlefile, args.tlename, &sat);
-		predict_calc(&sat, &observer_location, predict_get_current_daynum());
-		printf("\n[%s] jday: %12.5f, az:%6.1f, el:%6.1f, range rate:%6.3f km/s\n", args.tlename, sat.jul_utc, sat.az, sat.el, sat.range_rate);
-		doppler = (sat.range_rate * 1000 / SPEED_OF_LIGHT_M_S) * args.freq_hz * (-1.0);
-		printf("%3.3f MHz doppler: %6.1f Hz\n", args.freq_hz/1e+6, doppler);
-	}
+	// check which doppler mode parameter is missing
 	if (args.arg_doppler_mode && !args.arg_freq_hz) {
 		printf("doppler mode also needs --freq (-f) parameter which specifies object transmission frequency, ");
 		printf("for example 'ESTCUBE 1' uses 437505000 Hz\n");
@@ -287,9 +266,55 @@ int main(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	// arg output file
-	if (args.arg_output_file) {
-		printf("write events to file: %s\n", args.output_file);
+	// arg doppler mode
+	if (args.arg_doppler_mode && args.arg_freq_hz && args.arg_tlefile && args.arg_tlename && args.arg_lat && args.arg_lon && args.arg_alt) {
+		FILE* outputfp;
+		sat_t sat;
+		geodetic_t observer_location;
+		double doppler;
+
+		printf("doppler correction mode\n");
+		printf("\tTLE file: %s\n", args.tlefile);
+		printf("\tTLE name: %s\n", args.tlename);
+		printf("\tobserver location: lat %2.4f, lon %2.4f, alt %.1f m\n", args.lat, args.lon, args.alt);
+
+		observer_location.lat = Radians(args.lat);
+		observer_location.lon = Radians(args.lon);
+		observer_location.alt = args.alt / 1000.; // km
+		observer_location.theta = 0.;
+
+		predict_load_tle(args.tlefile, args.tlename, &sat);
+
+		// arg output file
+		if (args.arg_output_file) {
+			printf("write events to file: %s\n", args.output_file);
+			outputfp = fopen(args.output_file, "w");
+			if (outputfp == NULL) {
+				printf("cannot open events output file %s\n", args.output_file);
+				exit(EXIT_FAILURE);
+			}
+		}
+
+		while (1) {
+			predict_calc(&sat, &observer_location, predict_get_current_daynum());
+			doppler = (sat.range_rate * 1000 / SPEED_OF_LIGHT_M_S) * args.freq_hz * (-1.0);
+
+			if (args.arg_output_file) {
+				fprintf(outputfp, "[%s] jday: %12.5f, az:%6.1f, el:%6.1f, range rate:%6.3f km/s\n", args.tlename, sat.jul_utc, sat.az, sat.el, sat.range_rate);
+				fprintf(outputfp, "%3.3f MHz doppler: %6.1f Hz\n", args.freq_hz/1e+6, doppler);
+				fflush(outputfp);
+			}
+			else {
+				printf("\n[%s] jday: %12.5f, az:%6.1f, el:%6.1f, range rate:%6.3f km/s\n", args.tlename, sat.jul_utc, sat.az, sat.el, sat.range_rate);
+				printf("%3.3f MHz doppler: %6.1f Hz\n", args.freq_hz/1e+6, doppler);
+			}
+
+			sleep(1);
+		}
+
+		if (args.arg_output_file) {
+			fclose(outputfp);
+		}
 	}
 
 	return 0;
