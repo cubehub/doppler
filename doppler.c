@@ -309,6 +309,7 @@ int main(int argc, char *argv[]) {
 		geodetic_t observer_location;
 
 		double doppler;
+		int16_t iq_shifted[INPUT_STREAM_BLOCK_SIZE];
 		clock_t last_print_time;
 
 		fprintf(stderr, "doppler correction mode\n");
@@ -354,11 +355,12 @@ int main(int argc, char *argv[]) {
 			}
 
 			// read IQ stream
-			// do doppler correction
+			// shift baseband frequency by doppler frequency
 			// write IQ stream
 			bytes_read = fread(iq_buffer, 1, INPUT_STREAM_BLOCK_SIZE, stdin);
 			if (bytes_read) {
-				fwrite(iq_buffer, 1, bytes_read, stdout);
+				dsp_shift_frequency((int16_t*)iq_buffer, iq_shifted, bytes_read / 2, (int)doppler, args.samplerate);
+				fwrite(iq_shifted, 1, bytes_read, stdout);
 				fflush(stdout);
 			}
 
