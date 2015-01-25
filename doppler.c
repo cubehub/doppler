@@ -302,14 +302,12 @@ int main(int argc, char *argv[]) {
 
 				for (k=0; k<bytes_read/2; k+=2) {
 					c_sample = fiq_buffer[k] + fiq_buffer[k+1] * I;
-					c_corrector = cexpf(0.0 -2*M_PI*0*n*I);
-					//c_sample = c_sample * c_corrector;
+					c_corrector = cexpf(0.0 -2 * M_PI * (float)args.freq_hz/(float)args.samplerate * n * I);
+					c_sample = c_sample * c_corrector;
 
 					// convert float IQ back to int16_t IQ
 					i = crealf(c_sample) * 32767.0;
 					q = cimagf(c_sample) * 32767.0;
-					if (i > 32767) i = 32767;
-					if (q > 32767) q = 32767;
 
 					fwrite(&i, 1, 2, stdout);
 					fwrite(&q, 1, 2, stdout);
