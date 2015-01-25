@@ -5,6 +5,9 @@ Command line utility that takes IQ data stream as input and produces doppler cor
 ### mac os x
     brew install glib
 
+### linux
+    sudo apt-get install libglib2.0-dev
+
 ## install
     git clone https://github.com/cubehub/doppler.git
     cd doppler
