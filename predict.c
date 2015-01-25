@@ -29,22 +29,19 @@
 int predict_load_tle(char* tle_path, char* tle_name, sat_t* sat) {
 	FILE *fp;
 	char tle_str[3][80];
-	char str[128];
 	char* b;
 
 	fp = fopen(tle_path, "r");
 
 	if (fp == NULL) {
-		sprintf(str, "Cannot open tle file %s\n", tle_path);
-		fputs(str, stderr);
+		fprintf(stderr, "Cannot open tle file %s\n", tle_path);
 		return -1;
 	}
 
 	while (1) {
 		b = fgets(tle_str[0], 80, fp);
 		if (b == NULL) {
-			sprintf(str, "Cannot find satellite %s in TLE file %s\n", tle_name, tle_path);
-			fputs(str, stderr);
+			fprintf(stderr, "Cannot find satellite %s in TLE file %s\n", tle_name, tle_path);
 			fclose(fp);
 			return -1;
 		}
@@ -58,15 +55,13 @@ int predict_load_tle(char* tle_path, char* tle_name, sat_t* sat) {
 	fclose(fp);
 
 	if (b == NULL)	{
-		sprintf( str, "Cannot find satellite %s TLE data in file %s, unexpected EOF!\n", tle_name, tle_path);
-		fputs(str, stderr);
+		fprintf(stderr, "Cannot find satellite %s TLE data in file %s, unexpected EOF!\n", tle_name, tle_path);
 
 		return -1;
 	}
 
 	if (Get_Next_Tle_Set(tle_str, &(sat->tle)) != 1) {
-		sprintf(str, "Invalid TLE data! \n");
-		fputs(str, stderr);
+		fprintf(stderr, "Invalid TLE data! \n");
 		return -1;
 	}
 
