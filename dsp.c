@@ -37,3 +37,22 @@ void dsp_convert_float_to_int16(float* inbuf, int16_t* outbuf, int len) {
 		outbuf[i] = inbuf[i] * 32767.0;
 	}
 }
+
+void dsp_shift_frequency(int16_t* iqinput, int16_t* iqoutput, int len, int shift_freq_hz, int samplerate) {
+	static int n = 0;
+	int k = 0;
+	float complex c_sample;
+	float complex c_corrector;
+
+	for (k=0; k<len; k+=2) {
+		// convert int16_t IQ to complex float
+		c_sample = iqinput[k] / 32768.0 + iqinput[k+1] / 32768.0 * I;
+		c_corrector = cexpf(0.0 -2 * M_PI * (float)shift_freq_hz/(float)samplerate * n * I);
+		c_sample = c_sample * c_corrector;
+
+		// convert float back to int16_t IQ
+		iqoutput[k] = crealf(c_sample) * 32767.0; // I part
+		iqoutput[k+1] = cimagf(c_sample) * 32767.0; // Q part
+		n++;
+	}
+}

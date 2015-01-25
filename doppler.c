@@ -283,38 +283,17 @@ int main(int argc, char *argv[]) {
 	// CONST MODE
 	if (args.arg_const_mode && args.arg_freq_hz) {
 		fprintf(stderr, "constant shift mode with %d Hz shift\n", args.freq_hz);
-		int k = 0;
-		int n = 0;
-		int16_t i;
-		int16_t q;
-		float complex c_sample;
-		float complex c_corrector;
-		float fiq_buffer[INPUT_STREAM_BLOCK_SIZE];
+		int16_t iq_shifted[INPUT_STREAM_BLOCK_SIZE];
 
 		while (1) {
 			// read IQ stream
-			// do doppler correction
+			// shift baseband frequency
 			// write IQ stream
 			bytes_read = fread(iq_buffer, 1, INPUT_STREAM_BLOCK_SIZE, stdin);
-
 			if (bytes_read) {
-				dsp_convert_int16_to_float((int16_t*)iq_buffer, fiq_buffer, bytes_read/2);
-
-				for (k=0; k<bytes_read/2; k+=2) {
-					c_sample = fiq_buffer[k] + fiq_buffer[k+1] * I;
-					c_corrector = cexpf(0.0 -2 * M_PI * (float)args.freq_hz/(float)args.samplerate * n * I);
-					c_sample = c_sample * c_corrector;
-
-					// convert float IQ back to int16_t IQ
-					i = crealf(c_sample) * 32767.0;
-					q = cimagf(c_sample) * 32767.0;
-
-					fwrite(&i, 1, 2, stdout);
-					fwrite(&q, 1, 2, stdout);
-					fflush(stdout);
-
-					n++;
-				}
+				dsp_shift_frequency((int16_t*)iq_buffer, iq_shifted, bytes_read / 2, args.freq_hz, args.samplerate);
+				fwrite(iq_shifted, 1, bytes_read, stdout);
+				fflush(stdout);
 			}
 
 			if (feof(stdin)) {

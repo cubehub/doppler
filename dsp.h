@@ -28,8 +28,10 @@
 
 #include <complex.h>
 #include <stdint.h>
+#include <math.h>
 
 void dsp_convert_int16_to_float(int16_t* inbuf, float* outbuf, int len);
 void dsp_convert_float_to_int16(float* inbuf, int16_t* outbuf, int len);
+void dsp_shift_frequency(int16_t* iqinput, int16_t* iqoutput, int len, int shift_freq_hz, int samplerate);
 
 #endif
