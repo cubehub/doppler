@@ -26,8 +26,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
+#include <getopt.h>
 
 #include "predict.h"
+#include "dsp.h"
 
 #define TLE_FILE_NAME_LEN 512
 #define TLE_NAME_FIELD_LEN 512
@@ -96,6 +98,9 @@ int main(int argc, char *argv[]) {
 	int long_index = 0;
 	char* subopts;
 	char* value;
+
+	uint8_t iq_buffer[INPUT_STREAM_BLOCK_SIZE];
+	int bytes_read;
 
 	args_t args;
 	memset((void*)&args, 0, sizeof(args_t));
@@ -239,21 +244,19 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "samplerate: %u\n", args.samplerate);
 	}
 
-	// arg const mode
+	// check if only 1 mode is specified
 	if (args.arg_const_mode && args.arg_doppler_mode) {
 		fprintf(stderr, "--const (-c) and --doppler (-d) arguments cannot be used together\n");
 		exit(EXIT_FAILURE);
 	}
 
-	if (args.arg_const_mode && args.arg_freq_hz) {
-		fprintf(stderr, "constant shift mode with %d Hz shift\n", args.freq_hz);
-	}
-	else if (args.arg_const_mode && !args.arg_freq_hz) {
+	// check which const mode parameters are missing
+	if (args.arg_const_mode && !args.arg_freq_hz) {
 		fprintf(stderr, "constant shift mode also needs --freq (-f) argument to know how much to shift\n");
 		exit(EXIT_FAILURE);
 	}
 
-	// check which doppler mode parameter is missing
+	// check which doppler mode parameters are missing
 	if (args.arg_doppler_mode && !args.arg_freq_hz) {
 		fprintf(stderr, "doppler mode also needs --freq (-f) parameter which specifies object transmission frequency, ");
 		fprintf(stderr, "for example 'ESTCUBE 1' uses 437505000 Hz\n");
@@ -276,15 +279,59 @@ int main(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	// arg doppler mode
+
+	// CONST MODE
+	if (args.arg_const_mode && args.arg_freq_hz) {
+		fprintf(stderr, "constant shift mode with %d Hz shift\n", args.freq_hz);
+		int k = 0;
+		int n = 0;
+		int16_t i;
+		int16_t q;
+		float complex c_sample;
+		float complex c_corrector;
+		float fiq_buffer[INPUT_STREAM_BLOCK_SIZE];
+
+		while (1) {
+			// read IQ stream
+			// do doppler correction
+			// write IQ stream
+			bytes_read = fread(iq_buffer, 1, INPUT_STREAM_BLOCK_SIZE, stdin);
+
+			if (bytes_read) {
+				dsp_convert_int16_to_float((int16_t*)iq_buffer, fiq_buffer, bytes_read/2);
+
+				for (k=0; k<bytes_read/2; k+=2) {
+					c_sample = fiq_buffer[k] + fiq_buffer[k+1] * I;
+					c_corrector = cexpf(0.0 -2*M_PI*0*n*I);
+					//c_sample = c_sample * c_corrector;
+
+					// convert float IQ back to int16_t IQ
+					i = crealf(c_sample) * 32767.0;
+					q = cimagf(c_sample) * 32767.0;
+					if (i > 32767) i = 32767;
+					if (q > 32767) q = 32767;
+
+					fwrite(&i, 1, 2, stdout);
+					fwrite(&q, 1, 2, stdout);
+					fflush(stdout);
+
+					n++;
+				}
+			}
+
+			if (feof(stdin)) {
+				break;
+			}
+		}
+	}
+
+	// DOPPLER MODE
 	if (args.arg_doppler_mode && args.arg_freq_hz && args.arg_tlefile && args.arg_tlename && args.arg_lat && args.arg_lon && args.arg_alt) {
 		FILE* outputfp;
 		sat_t sat;
 		geodetic_t observer_location;
 
 		double doppler;
-		uint8_t iq_buffer[INPUT_STREAM_BLOCK_SIZE];
-		int bytes_read;
 		clock_t last_print_time;
 
 		fprintf(stderr, "doppler correction mode\n");

@@ -5,6 +5,7 @@ project(doppler)
 add_executable(doppler
 	doppler.c
 	predict.c
+	dsp.c
 	libgpredict/sgpsdp/sgp4sdp4.c
 	libgpredict/sgpsdp/sgp_math.c
 	libgpredict/sgpsdp/sgp_in.c
