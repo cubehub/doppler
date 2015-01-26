@@ -17,9 +17,12 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 # Glib
 # cmake/FindGlib.cmake is taken from https://github.com/WebKit/webkit/blob/master/Source/cmake/FindGLIB.cmake
-find_package(glib REQUIRED)
+find_package(Glib REQUIRED)
 include_directories(${GLIB_INCLUDE_DIR})
 include_directories(${GLIBCONFIG_INCLUDE_DIR})
 target_link_libraries(doppler ${GLIB_LIBRARIES})
+
+# sys math lib
+target_link_libraries(doppler m)
 
 install(TARGETS doppler DESTINATION bin)
