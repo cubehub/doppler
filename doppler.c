@@ -324,7 +324,6 @@ int main(int argc, char *argv[]) {
 	// CONST MODE
 	if (args.arg_const_mode && args.arg_offset_hz) {
 		fprintf(stderr, "constant shift mode with %d Hz shift\n", args.offset_hz);
-		int16_t iq_shifted[INPUT_STREAM_BLOCK_SIZE];
 
 		while (1) {
 			// read IQ stream
@@ -332,8 +331,8 @@ int main(int argc, char *argv[]) {
 			// write IQ stream
 			bytes_read = fread(iq_buffer, 1, INPUT_STREAM_BLOCK_SIZE, stdin);
 			if (bytes_read) {
-				dsp_shift_frequency((int16_t*)iq_buffer, iq_shifted, bytes_read / 2, args.offset_hz, args.samplerate);
-				fwrite(iq_shifted, 1, bytes_read, stdout);
+				dsp_shift_frequency((int16_t*)iq_buffer, bytes_read / 2, args.offset_hz, args.samplerate);
+				fwrite(iq_buffer, 1, bytes_read, stdout);
 				fflush(stdout);
 			}
 
@@ -352,7 +351,6 @@ int main(int argc, char *argv[]) {
 
 		double doppler;
 		double shift;
-		int16_t iq_shifted[INPUT_STREAM_BLOCK_SIZE];
 		time_t systime;
 		struct tm* timestamp = &args.utc_time;
 
@@ -430,8 +428,8 @@ int main(int argc, char *argv[]) {
 			// write IQ stream
 			bytes_read = fread(iq_buffer, 1, INPUT_STREAM_BLOCK_SIZE, stdin);
 			if (bytes_read) {
-				dsp_shift_frequency((int16_t*)iq_buffer, iq_shifted, bytes_read / 2, (int)shift, args.samplerate);
-				fwrite(iq_shifted, 1, bytes_read, stdout);
+				dsp_shift_frequency((int16_t*)iq_buffer, bytes_read / 2, (int)shift, args.samplerate);
+				fwrite(iq_buffer, 1, bytes_read, stdout);
 				fflush(stdout);
 			}
 
