@@ -30,6 +30,8 @@
 
 int predict_load_tle(char* tle_path, char* tle_name, sat_t* sat);
 void predict_calc(sat_t* sat, geodetic_t* obs_geodetic, double t);
+
 double predict_get_current_daynum();
+double predict_get_daynum(struct tm* utc);
 
 #endif

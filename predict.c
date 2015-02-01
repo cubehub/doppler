@@ -134,3 +134,12 @@ double predict_get_current_daynum() {
 	daynum = daynum + (double)tmval.tv_usec / 8.64e+10;
 	return daynum;
 }
+
+double predict_get_daynum(struct tm* utc) {
+	struct tm t;
+	memcpy(&t, utc, sizeof(struct tm));
+
+	t.tm_year += 1900;
+  	t.tm_mon += 1;
+	return Julian_Date(&t);
+}

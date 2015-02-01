@@ -33,7 +33,7 @@
 
 #define TLE_FILE_NAME_LEN 512
 #define TLE_NAME_FIELD_LEN 512
-#define OUTPUT_FILE_NAME_LEN 512
+#define LOG_FILE_NAME_LEN 512
 
 #define SPEED_OF_LIGHT_M_S 299792458.
 
@@ -63,15 +63,28 @@ typedef struct {
 	int arg_freq_hz;
 	int freq_hz;
 
-	int arg_output_file;
-	char output_file[OUTPUT_FILE_NAME_LEN];
+	int arg_utc_time;
+	struct tm utc_time;
+
+	int arg_offset_hz;
+	int offset_hz;
+
+	int arg_log_file;
+	char log_file[LOG_FILE_NAME_LEN];
 } args_t;
 
-char* utc_timestamp(){
+char* utc_timestamp(struct tm* t){
 	static char timestamp[50];
 	time_t utime;
-	utime = time(NULL);
-	strftime(timestamp, 50, "%Y-%m-%dT%H:%M:%S.000", gmtime(&utime));
+
+	if (t == NULL) {
+		utime = time(NULL);
+		strftime(timestamp, 50, "%Y-%m-%dT%H:%M:%SZ", gmtime(&utime));
+	}
+	else {
+		strftime(timestamp, 50, "%Y-%m-%dT%H:%M:%SZ", t);
+	}
+
 	return timestamp;
 }
 
@@ -79,17 +92,22 @@ void print_help() {
 	fprintf(stderr, "doppler\t(C) 2015 Andres Vahter (andres.vahter@gmail.com)\n\n");
 	fprintf(stderr, "doppler takes signed 16 bit IQ data stream as input and produces doppler corrected or constant shifted output\n");
 	fprintf(stderr, "usage: doppler args\n");
-	fprintf(stderr, "\t--const \t-c \t\t\t: constant shift mode: needs also --freq parameter\n");
+	fprintf(stderr, "\t--samplerate \t-s <samplerate>\t\t: input data stream samplerate\n\n");
+
+	fprintf(stderr, "\t--const \t-c \t\t\t: constant shift mode: needs also --offset parameter\n");
 	fprintf(stderr, "\t--doppler \t-d \t\t\t: doppler correction mode: needs also --freq, --tlefile, --tlename and --location parameters\n\n");
 
-	fprintf(stderr, "\t--samplerate \t-s <samplerate>\t\t: input data stream samplerate\n");
+
 	fprintf(stderr, "\t--tlefile \t-t <filename>\t\t: doppler: TLE file\n");
 	fprintf(stderr, "\t--tlename \t-n <name>\t\t: doppler: which TLE to use from TLE file\n");
 	fprintf(stderr, "\t--location \t-l <lat,lon,alt>\t: doppler: specifies observer location on earth\n");
 	fprintf(stderr, "\t--freq \t\t-f <freq_hz>\t\t: doppler: specifies object transmission frequency in Hz\n");
-	fprintf(stderr, "\t\t\t\t\t\t: const: specifies by how much input stream will be shifted in Hz\n\n");
+	fprintf(stderr, "\t--time \t\t<Y-m-dTH:M:S>\t\t: doppler: specifies observation start time in UTC (eg. 2015-01-31T17:00:01), uses current time if not specified\n\n");
 
-	fprintf(stderr, "\t--output \t-o <filename>\t\t: logs information about frequnecy shifting to a file\n");
+	fprintf(stderr, "\t--offset \t-o <offset_hz>\t\t: doppler/const: specifies by how much input stream will be constantly shifted in Hz\n\n");
+
+
+	fprintf(stderr, "\t--log \t\t<filename>\t\t: logs information about frequnecy shifting to a file\n");
 	fprintf(stderr, "\t--help \t\t-h \t\t\t: prints this usage information\n");
 }
 
@@ -114,11 +132,14 @@ int main(int argc, char *argv[]) {
 		{"tlefile",		required_argument,	0,		't' },
 		{"tlename",		required_argument,	0,		'n' },
 		{"location",	required_argument,	0,		'l' },
+		{"freq",		required_argument,	0,		'f' }, // object transmitter frequency
+		{"time",		required_argument,	0,		 0  }, // specify time in UTC, default is current time
 
-		{"freq",		required_argument,	0,		'f' }, // const mode: frequency shift, doppler mode: original signal frequency
-		{"output",		required_argument,	0,		'o' }, // log doppler correction information to file
+		{"offset",		required_argument,	0,		'o' }, // const mode: how much to shift, doppler mode: how much to shift constantly
+
+		{"log",			required_argument,	0,		 0	}, // log activity to a file
 		{"help",		required_argument,	0,		'h' },
-		{NULL,			0,					NULL,	0	}
+		{NULL,			0,					NULL,	 0	}
 	};
 
 	enum {
@@ -136,6 +157,32 @@ int main(int argc, char *argv[]) {
 
 	while ((opt = getopt_long(argc, argv,"s:cdt:n:l:f:o:h", long_options, &long_index )) != -1) {
 		switch (opt) {
+			case 0:
+				if (strcmp("log", long_options[long_index].name) == 0) {
+					args.arg_log_file = 1;
+					if (strlen(optarg) < LOG_FILE_NAME_LEN) {
+						memcpy(&(args.log_file[0]), optarg, strlen(optarg));
+					}
+					else {
+						fprintf(stderr, "--log argument %s is longer than %u, cannot use it as filename!\n", optarg, LOG_FILE_NAME_LEN);
+						exit(EXIT_FAILURE);
+					}
+				}
+
+				if (strcmp("time", long_options[long_index].name) == 0) {
+					if (strlen(optarg) == 19) {
+						if (strptime(optarg, "%Y-%m-%dT%H:%M:%S", &args.utc_time) != NULL) {
+							args.arg_utc_time = 1;
+						}
+					}
+
+					if (!args.arg_utc_time) {
+						fprintf(stderr, "there is error in timestamp, it should use format like 2015-01-31T17:00:01\n");
+						exit(EXIT_FAILURE);
+					}
+				}
+				break;
+
 			case 's' :
 				args.arg_samplerate = 1;
 				args.samplerate = atoi(optarg);
@@ -216,14 +263,8 @@ int main(int argc, char *argv[]) {
 				}
 				break;
 			case 'o' :
-				args.arg_output_file = 1;
-				if (strlen(optarg) < OUTPUT_FILE_NAME_LEN) {
-					memcpy(&(args.output_file[0]), optarg, strlen(optarg));
-				}
-				else {
-					fprintf(stderr, "--output (-o) argument %s is longer than %u, cannot use it as input!\n", optarg, OUTPUT_FILE_NAME_LEN);
-					exit(EXIT_FAILURE);
-				}
+				args.arg_offset_hz = 1;
+				args.offset_hz = atoi(optarg);
 				break;
 			case 'h' :
 				print_help();
@@ -251,8 +292,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	// check which const mode parameters are missing
-	if (args.arg_const_mode && !args.arg_freq_hz) {
-		fprintf(stderr, "constant shift mode also needs --freq (-f) argument to know how much to shift\n");
+	if (args.arg_const_mode && !args.arg_offset_hz) {
+		fprintf(stderr, "constant shift mode also needs --offset (-o) argument to know how much to shift\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -281,8 +322,8 @@ int main(int argc, char *argv[]) {
 
 
 	// CONST MODE
-	if (args.arg_const_mode && args.arg_freq_hz) {
-		fprintf(stderr, "constant shift mode with %d Hz shift\n", args.freq_hz);
+	if (args.arg_const_mode && args.arg_offset_hz) {
+		fprintf(stderr, "constant shift mode with %d Hz shift\n", args.offset_hz);
 		int16_t iq_shifted[INPUT_STREAM_BLOCK_SIZE];
 
 		while (1) {
@@ -291,7 +332,7 @@ int main(int argc, char *argv[]) {
 			// write IQ stream
 			bytes_read = fread(iq_buffer, 1, INPUT_STREAM_BLOCK_SIZE, stdin);
 			if (bytes_read) {
-				dsp_shift_frequency((int16_t*)iq_buffer, iq_shifted, bytes_read / 2, args.freq_hz, args.samplerate);
+				dsp_shift_frequency((int16_t*)iq_buffer, iq_shifted, bytes_read / 2, args.offset_hz, args.samplerate);
 				fwrite(iq_shifted, 1, bytes_read, stdout);
 				fflush(stdout);
 			}
@@ -304,13 +345,16 @@ int main(int argc, char *argv[]) {
 
 	// DOPPLER MODE
 	if (args.arg_doppler_mode && args.arg_freq_hz && args.arg_tlefile && args.arg_tlename && args.arg_lat && args.arg_lon && args.arg_alt) {
-		FILE* outputfp;
+		FILE* logfp;
+		FILE* loggerfp;
 		sat_t sat;
 		geodetic_t observer_location;
 
 		double doppler;
+		double shift;
 		int16_t iq_shifted[INPUT_STREAM_BLOCK_SIZE];
-		clock_t last_print_time;
+		time_t systime;
+		struct tm* timestamp = &args.utc_time;
 
 		fprintf(stderr, "doppler correction mode\n");
 		fprintf(stderr, "\tTLE file: %s\n", args.tlefile);
@@ -325,33 +369,60 @@ int main(int argc, char *argv[]) {
 		predict_load_tle(args.tlefile, args.tlename, &sat);
 
 		// arg output file
-		if (args.arg_output_file) {
-			fprintf(stderr, "write events to file: %s\n", args.output_file);
-			outputfp = fopen(args.output_file, "w");
-			if (outputfp == NULL) {
-				fprintf(stderr, "cannot open events output file %s\n", args.output_file);
+		if (args.arg_log_file) {
+			fprintf(stderr, "log events to file: %s\n", args.log_file);
+			logfp = fopen(args.log_file, "w");
+			if (logfp == NULL) {
+				fprintf(stderr, "cannot open events output file %s\n", args.log_file);
 				exit(EXIT_FAILURE);
 			}
 		}
 
-		last_print_time = clock();
+		if (args.arg_utc_time) {
+			fprintf(stderr, "\tobservation start time: %s\n", utc_timestamp(timestamp));
+		}
+		else {
+			timestamp = NULL; // use current time for logging
+		}
 
+		systime = time(NULL);
 		while (1) {
-			predict_calc(&sat, &observer_location, predict_get_current_daynum());
+			if (args.arg_utc_time) {
+				predict_calc(&sat, &observer_location, predict_get_daynum(timestamp));
+			}
+			else {
+				predict_calc(&sat, &observer_location, predict_get_current_daynum());
+			}
+
 			doppler = (sat.range_rate * 1000 / SPEED_OF_LIGHT_M_S) * args.freq_hz * (-1.0);
 
-			if (((clock() - last_print_time) / CLOCKS_PER_SEC) > 0.01) {
-				last_print_time = clock();
-				if (args.arg_output_file) {
-					fprintf(outputfp, "%s: jday: %12.5f, az:%6.1f, el:%6.1f, range rate:%6.3f km/s\n", utc_timestamp(), sat.jul_utc, sat.az, sat.el, sat.range_rate);
-					fprintf(outputfp, "%s: %3.3f MHz doppler: %6.1f Hz\n", utc_timestamp(), args.freq_hz/1e+6, doppler);
-					fflush(outputfp);
+			if ((time(NULL) - systime) > 0.01) {
+				systime = time(NULL);
+
+				if (args.arg_utc_time) {
+					time_t t = mktime(timestamp);
+					t += 1.0; // add 1s
+					args.utc_time = *localtime(&t);
+				}
+
+				if (args.arg_log_file) {
+					loggerfp = logfp;
 				}
 				else {
-					fprintf(stderr, "\n%s: jday: %12.5f, az:%6.1f, el:%6.1f, range rate:%6.3f km/s\n", utc_timestamp(), sat.jul_utc, sat.az, sat.el, sat.range_rate);
-					fprintf(stderr, "%s: %3.3f MHz doppler: %6.1f Hz\n", utc_timestamp(), args.freq_hz/1e+6, doppler);
-					fflush(stderr);
+					loggerfp = stderr;
 				}
+
+				fprintf(loggerfp, "\n%s: az:%6.1f, el:%6.1f, range rate:%6.3f km/s\n", utc_timestamp(timestamp), sat.az, sat.el, sat.range_rate);
+				fprintf(loggerfp, "%s: %3.3f MHz doppler: %6.1f Hz\n", utc_timestamp(timestamp), args.freq_hz/1e+6, doppler);
+				fflush(loggerfp);
+			}
+
+			// check if also constant offset correction is needed
+			if (args.arg_offset_hz) {
+				shift = args.offset_hz + doppler;
+			}
+			else {
+				shift = doppler;
 			}
 
 			// read IQ stream
@@ -359,7 +430,7 @@ int main(int argc, char *argv[]) {
 			// write IQ stream
 			bytes_read = fread(iq_buffer, 1, INPUT_STREAM_BLOCK_SIZE, stdin);
 			if (bytes_read) {
-				dsp_shift_frequency((int16_t*)iq_buffer, iq_shifted, bytes_read / 2, (int)doppler, args.samplerate);
+				dsp_shift_frequency((int16_t*)iq_buffer, iq_shifted, bytes_read / 2, (int)shift, args.samplerate);
 				fwrite(iq_shifted, 1, bytes_read, stdout);
 				fflush(stdout);
 			}
@@ -367,10 +438,11 @@ int main(int argc, char *argv[]) {
 			if (feof(stdin)) {
 				break;
 			}
+
 		}
 
-		if (args.arg_output_file) {
-			fclose(outputfp);
+		if (args.arg_log_file) {
+			fclose(logfp);
 		}
 	}
 
