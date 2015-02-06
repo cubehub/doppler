@@ -24,20 +24,6 @@
 
 #include "dsp.h"
 
-void dsp_convert_int16_to_float(int16_t* inbuf, float* outbuf, int len) {
-	int i;
-	for (i=0; i<len; i++) {
-		outbuf[i] = inbuf[i] / 32768.0;
-	}
-}
-
-void dsp_convert_float_to_int16(float* inbuf, int16_t* outbuf, int len) {
-	int i;
-	for (i=0; i<len; i++) {
-		outbuf[i] = inbuf[i] * 32767.0;
-	}
-}
-
 int dsp_shift_frequency_i16(int16_t* iqbuffer, int len, int shift_freq_hz, int samplerate) {
 	static int n = 0;
 	int k = 0;
