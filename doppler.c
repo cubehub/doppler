@@ -43,6 +43,9 @@ typedef struct {
 	int arg_samplerate;
 	int samplerate;
 
+	int arg_inputtype;
+	int inputtype;
+
 	int arg_const_mode;
 
 	int arg_doppler_mode;
@@ -92,11 +95,11 @@ void print_help() {
 	fprintf(stderr, "doppler\t(C) 2015 Andres Vahter (andres.vahter@gmail.com)\n\n");
 	fprintf(stderr, "doppler takes signed 16 bit IQ data stream as input and produces doppler corrected or constant shifted output\n");
 	fprintf(stderr, "usage: doppler args\n");
-	fprintf(stderr, "\t--samplerate \t-s <samplerate>\t\t: input data stream samplerate\n\n");
+	fprintf(stderr, "\t--samplerate \t-s <samplerate>\t\t: input data stream samplerate\n");
+	fprintf(stderr, "\t--inputtype \t-i <i16, f32>\t\t: input data stream type\n\n");
 
 	fprintf(stderr, "\t--const \t-c \t\t\t: constant shift mode: needs also --offset parameter\n");
 	fprintf(stderr, "\t--doppler \t-d \t\t\t: doppler correction mode: needs also --freq, --tlefile, --tlename and --location parameters\n\n");
-
 
 	fprintf(stderr, "\t--tlefile \t-t <filename>\t\t: doppler: TLE file\n");
 	fprintf(stderr, "\t--tlename \t-n <name>\t\t: doppler: which TLE to use from TLE file\n");
@@ -105,7 +108,6 @@ void print_help() {
 	fprintf(stderr, "\t--time \t\t<Y-m-dTH:M:S>\t\t: doppler: specifies observation start time in UTC (eg. 2015-01-31T17:00:01), uses current time if not specified\n\n");
 
 	fprintf(stderr, "\t--offset \t-o <offset_hz>\t\t: doppler/const: specifies by how much input stream will be constantly shifted in Hz\n\n");
-
 
 	fprintf(stderr, "\t--log \t\t<filename>\t\t: logs information about frequnecy shifting to a file\n");
 	fprintf(stderr, "\t--help \t\t-h \t\t\t: prints this usage information\n");
@@ -119,12 +121,14 @@ int main(int argc, char *argv[]) {
 
 	uint8_t iq_buffer[INPUT_STREAM_BLOCK_SIZE];
 	int bytes_read;
+	int shifted_data_len;
 
 	args_t args;
 	memset((void*)&args, 0, sizeof(args_t));
 
 	static struct option long_options[] = {
 		{"samplerate",	required_argument,	0,		's' }, // samplerate of input IQ data stream
+		{"inputtype",	required_argument,	0,		'i' }, // IQ data stream type: i16, f32
 
 		{"const",		no_argument,		0,		'c' }, // constant shift mode and its parameters
 
@@ -143,6 +147,17 @@ int main(int argc, char *argv[]) {
 	};
 
 	enum {
+		INPUT_TYPE_OPTION_I16 = 0,
+		INPUT_TYPE_OPTION_F32,
+	};
+
+	const char* input_type_opts[] = {
+		[INPUT_TYPE_OPTION_I16] = "i16",
+		[INPUT_TYPE_OPTION_F32] = "f32",
+		NULL
+	};
+
+	enum {
 		LAT_OPTION = 0,
 		LON_OPTION,
 		ALT_OPTION,
@@ -155,7 +170,11 @@ int main(int argc, char *argv[]) {
 		NULL
 	};
 
-	while ((opt = getopt_long(argc, argv,"s:cdt:n:l:f:o:h", long_options, &long_index )) != -1) {
+	// default values
+	args.arg_inputtype = 1;
+	args.inputtype = INPUT_TYPE_OPTION_I16;
+
+	while ((opt = getopt_long(argc, argv,"s:i:cdt:n:l:f:o:h", long_options, &long_index )) != -1) {
 		switch (opt) {
 			case 0:
 				if (strcmp("log", long_options[long_index].name) == 0) {
@@ -188,6 +207,20 @@ int main(int argc, char *argv[]) {
 				args.samplerate = atoi(optarg);
 				if (args.samplerate < 1) {
 					fprintf(stderr, "samplerate must be > 0\n");
+					exit(EXIT_FAILURE);
+				}
+				break;
+			case 'i' :
+				args.arg_inputtype = 1;
+
+				if (strcmp("i16", optarg) == 0) {
+					args.inputtype = INPUT_TYPE_OPTION_I16;
+				}
+				else if (strcmp("f32", optarg) == 0) {
+					args.inputtype = INPUT_TYPE_OPTION_F32;
+				}
+				else {
+					fprintf(stderr, "valid input IQ stream types are: i16, f32\n");
 					exit(EXIT_FAILURE);
 				}
 				break;
@@ -282,7 +315,7 @@ int main(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 	else {
-		fprintf(stderr, "samplerate: %u\n", args.samplerate);
+		fprintf(stderr, "IQ samplerate: %u, stream type %s\n", args.samplerate, input_type_opts[args.inputtype]);
 	}
 
 	// check if only 1 mode is specified
@@ -331,8 +364,18 @@ int main(int argc, char *argv[]) {
 			// write IQ stream
 			bytes_read = fread(iq_buffer, 1, INPUT_STREAM_BLOCK_SIZE, stdin);
 			if (bytes_read) {
-				dsp_shift_frequency((int16_t*)iq_buffer, bytes_read / 2, args.offset_hz, args.samplerate);
-				fwrite(iq_buffer, 1, bytes_read, stdout);
+				if (args.inputtype == INPUT_TYPE_OPTION_I16) {
+					shifted_data_len = dsp_shift_frequency_i16((int16_t*)iq_buffer, bytes_read / 2, (int)args.offset_hz, args.samplerate);
+				}
+				else if (args.inputtype == INPUT_TYPE_OPTION_F32) {
+					shifted_data_len = dsp_shift_frequency_f32((float*)iq_buffer, bytes_read / 4, (int)args.offset_hz, args.samplerate);
+				}
+				else {
+					fprintf(stderr, "ASSERT: wrong args.inputtype %u\n", args.inputtype);
+					exit(EXIT_FAILURE);
+				}
+
+				fwrite(iq_buffer, 1, shifted_data_len, stdout);
 				fflush(stdout);
 			}
 
@@ -428,15 +471,24 @@ int main(int argc, char *argv[]) {
 			// write IQ stream
 			bytes_read = fread(iq_buffer, 1, INPUT_STREAM_BLOCK_SIZE, stdin);
 			if (bytes_read) {
-				dsp_shift_frequency((int16_t*)iq_buffer, bytes_read / 2, (int)shift, args.samplerate);
-				fwrite(iq_buffer, 1, bytes_read, stdout);
+				if (args.inputtype == INPUT_TYPE_OPTION_I16) {
+					shifted_data_len = dsp_shift_frequency_i16((int16_t*)iq_buffer, bytes_read / 2, (int)shift, args.samplerate);
+				}
+				else if (args.inputtype == INPUT_TYPE_OPTION_F32) {
+					shifted_data_len = dsp_shift_frequency_f32((float*)iq_buffer, bytes_read / 4, (int)shift, args.samplerate);
+				}
+				else {
+					fprintf(loggerfp, "ASSERT: wrong args.inputtype %u\n", args.inputtype);
+					exit(EXIT_FAILURE);
+				}
+
+				fwrite(iq_buffer, 1, shifted_data_len, stdout);
 				fflush(stdout);
 			}
 
 			if (feof(stdin)) {
 				break;
 			}
-
 		}
 
 		if (args.arg_log_file) {

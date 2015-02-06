@@ -38,7 +38,7 @@ void dsp_convert_float_to_int16(float* inbuf, int16_t* outbuf, int len) {
 	}
 }
 
-void dsp_shift_frequency(int16_t* iqbuffer, int len, int shift_freq_hz, int samplerate) {
+int dsp_shift_frequency_i16(int16_t* iqbuffer, int len, int shift_freq_hz, int samplerate) {
 	static int n = 0;
 	int k = 0;
 	float complex c_sample;
@@ -55,4 +55,28 @@ void dsp_shift_frequency(int16_t* iqbuffer, int len, int shift_freq_hz, int samp
 		iqbuffer[k+1] = cimagf(c_sample) * 32767.0; // Q part
 		n++;
 	}
+
+	// shifted data len in bytes
+	return len * 2;
+}
+
+int dsp_shift_frequency_f32(float* iqbuffer, int len, int shift_freq_hz, int samplerate) {
+	static int n = 0;
+	int k = 0;
+	float complex c_sample;
+	float complex c_corrector;
+
+	for (k=0; k<len; k+=2) {
+		c_sample = iqbuffer[k] + iqbuffer[k+1] * I;
+		c_corrector = cexpf(0.0 -2 * M_PI * (float)shift_freq_hz/(float)samplerate * n * I);
+		c_sample = c_sample * c_corrector;
+
+		// convert float back to int16_t IQ
+		((int16_t*)iqbuffer)[k] = crealf(c_sample) * 32767.0; // I part
+		((int16_t*)iqbuffer)[k+1] = cimagf(c_sample) * 32767.0; // Q part
+		n++;
+	}
+
+	// shifted data len in bytes
+	return len * 2;
 }
