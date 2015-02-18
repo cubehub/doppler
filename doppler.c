@@ -395,7 +395,10 @@ int main(int argc, char *argv[]) {
 		double doppler;
 		double shift;
 		time_t systime;
-		struct tm* timestamp = &args.utc_time;
+		int sample_count = 0;
+		struct tm t;
+		struct tm* timestamp = &t;
+		memcpy(&t, &args.utc_time, sizeof(t));
 
 		fprintf(stderr, "doppler correction mode\n");
 		fprintf(stderr, "\tTLE file: %s\n", args.tlefile);
@@ -423,10 +426,24 @@ int main(int argc, char *argv[]) {
 			fprintf(stderr, "\tobservation start time: %s\n", utc_timestamp(timestamp));
 		}
 		else {
-			timestamp = NULL; // use current time for logging
+			timestamp = NULL; // use current system time for logging
 		}
 
-		systime = time(NULL);
+		if (args.arg_log_file) {
+			loggerfp = logfp;
+		}
+		else {
+			loggerfp = stderr;
+		}
+
+		// take current timestamp
+		if (args.arg_utc_time) {
+			systime = mktime(&args.utc_time);
+		}
+		else {
+			systime = time(NULL);
+		}
+
 		while (1) {
 			if (args.arg_utc_time) {
 				predict_calc(&sat, &observer_location, predict_get_daynum(timestamp));
@@ -437,21 +454,24 @@ int main(int argc, char *argv[]) {
 
 			doppler = (sat.range_rate * 1000 / SPEED_OF_LIGHT_M_S) * args.freq_hz * (-1.0);
 
-			if ((time(NULL) - systime) > 0.01) {
+			// advance timestamp based on samples read
+			if (args.arg_utc_time) {
+				time_t tt = mktime(&args.utc_time);
+				tt += sample_count/args.samplerate; // advance time
+				timestamp = localtime(&tt);
+
+				if (tt - systime >= 5.0) {
+					systime = tt;
+
+					fprintf(loggerfp, "\n%s: az:%6.1f, el:%6.1f, range rate:%6.3f km/s\n", utc_timestamp(timestamp), sat.az, sat.el, sat.range_rate);
+					fprintf(loggerfp, "%s: %3.3f MHz doppler: %6.1f Hz\n", utc_timestamp(timestamp), args.freq_hz/1e+6, doppler);
+					fflush(loggerfp);
+				}
+			}
+
+			// print realtime doppler after every 1 s
+			if (!args.arg_utc_time && (time(NULL) - systime) > 0.01) {
 				systime = time(NULL);
-
-				if (args.arg_utc_time) {
-					time_t t = mktime(timestamp);
-					t += 1.0; // add 1s
-					args.utc_time = *localtime(&t);
-				}
-
-				if (args.arg_log_file) {
-					loggerfp = logfp;
-				}
-				else {
-					loggerfp = stderr;
-				}
 
 				fprintf(loggerfp, "\n%s: az:%6.1f, el:%6.1f, range rate:%6.3f km/s\n", utc_timestamp(timestamp), sat.az, sat.el, sat.range_rate);
 				fprintf(loggerfp, "%s: %3.3f MHz doppler: %6.1f Hz\n", utc_timestamp(timestamp), args.freq_hz/1e+6, doppler);
@@ -472,9 +492,11 @@ int main(int argc, char *argv[]) {
 			bytes_read = fread(iq_buffer, 1, INPUT_STREAM_BLOCK_SIZE, stdin);
 			if (bytes_read) {
 				if (args.inputtype == INPUT_TYPE_OPTION_I16) {
+					sample_count += bytes_read / 4;
 					shifted_data_len = dsp_shift_frequency_i16((int16_t*)iq_buffer, bytes_read / 2, (int)shift, args.samplerate);
 				}
 				else if (args.inputtype == INPUT_TYPE_OPTION_F32) {
+					sample_count += bytes_read / 8;
 					shifted_data_len = dsp_shift_frequency_f32((float*)iq_buffer, bytes_read / 4, (int)shift, args.samplerate);
 				}
 				else {
