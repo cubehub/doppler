@@ -25,8 +25,8 @@ Notice that rtl_sdr is tuned to 437.500 MHz, but ESTCube-1 transmits on 437.505 
 
     rtl_sdr -f 437500000 -s 1024000 -g 20 - | doppler -s 1024000 -i i16 -d -t cubesat.txt -n 'ESTCUBE 1' --location lat=58.26541,lon=26.46667,alt=76.1 -f 437505000 -o 5000 > zero.iq
 
-Make doppler correction to a file that is recorded before, for example someone has recorded an overpass and you want to get a another file with doppler compensation.
-Paramter --time specifies when recording is taken. It does doppler correction based on this time instead of using real time.
+Make doppler correction to a file that is recorded before. For example someone has recorded an overpass and you want to get another file with doppler compensation.
+Parameter --time specifies when recording is taken. It does doppler correction based on this time instead of using real time.
 
     cat last_overpass_256000sps_i16.iq | doppler -s 256000 -i i16 -d -t cubesat.txt -n 'ESTCUBE 1' --location lat=58.26541,lon=26.46667,alt=76.1 -f 437505000 -o 5000 --time 2015-01-22T09:07:16 > zero_overpass.iq
 
