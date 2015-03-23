@@ -1,24 +1,35 @@
 
-mod args;
-use std::env;
+extern crate docopt;
+mod usage;
+
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 fn main() {
-    let mut args = args::Args::new();
-    let matches = args.parse_args();
+    let args = usage::args();
 
-    let matches = match args.opts.parse(args.args.tail()) {
-        Ok(m) => { m }
-        Err(f) => {
-            print!("ERROR: {}\n\n", f.to_string());
-            args.print_usage();
-            env::set_exit_status(1);
-            return;
-        }
-    };
+    //println!("{:?}", args);
 
-    if matches.opt_present("h") {
-        args.print_usage();
-        return;
+    println!("doppler {} andres.vahter@gmail.com\n\n", VERSION);
+
+    if args.get_bool("const") {
+        println!("constant shift mode");
+
+        println!("\tIQ samplerate   : {}", args.get_str("--samplerate"));
+        println!("\tIQ data type    : {}\n", args.get_str("--intype"));
+
+        println!("\tfrequency shift : {} Hz", args.get_str("--shift"));
     }
+    else if args.get_bool("track") {
+        println!("tracking mode");
 
+        println!("\tIQ samplerate   : {}", args.get_str("--samplerate"));
+        println!("\tIQ data type    : {}\n", args.get_str("--intype"));
+
+        println!("\tTLE file        : {}", args.get_str("--tlefile"));
+        println!("\tTLE name        : {}", args.get_str("--tlename"));
+        println!("\tlocation        : {}", args.get_str("--location"));
+        println!("\ttime            : {}", args.get_str("--time"));
+        println!("\tfrequency       : {} Hz", args.get_str("--freq"));
+        println!("\tfrequency shift : {} Hz", args.get_str("--shift"));
+    }
 }

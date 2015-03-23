@@ -5,4 +5,4 @@ version = "1.0.0"
 authors = ["Andres Vahter <andres.vahter@gmail.com>"]
 
 [dependencies]
-getopts = "0.2.4"
+docopt = "*"
