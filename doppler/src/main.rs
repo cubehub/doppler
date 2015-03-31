@@ -22,10 +22,18 @@
  * SOFTWARE.
  */
 
-extern crate docopt;
-mod usage;
+
+// import local modules
+extern crate doppler;
+use doppler::predict as predict;
+use doppler::usage as usage;
+
+// import external modules
+use std::old_io::Timer;
+use std::time::Duration;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
 
 fn main() {
     let args = usage::args();
@@ -54,5 +62,23 @@ fn main() {
         println!("\ttime            : {}", args.get_str("--time"));
         println!("\tfrequency       : {} Hz", args.get_str("--freq"));
         println!("\tfrequency shift : {} Hz", args.get_str("--shift"));
+    }
+
+    let tle: predict::Tle = predict::Tle{
+        name: "ESTCUBE 1".to_string(),
+        line1: "1 39161U 13021C   15048.48339150  .00001629  00000-0  27460-3 0  9998".to_string(),
+        line2: "2 39161  98.0776 132.4584 0009543 342.5605  17.5261 14.70812859 95643".to_string()
+    };
+
+    let location: predict::Location = predict::Location{lat_deg:58.64560, lon_deg: 23.15163, alt_m: 8};
+    let mut predict: predict::Predict = predict::Predict::new(tle, location);
+
+    let mut timer = Timer::new().unwrap();
+    let periodic = timer.periodic(Duration::milliseconds(1000));
+
+    loop {
+        periodic.recv().unwrap();
+        predict.update();
+        println!("{:?}", predict.sat.alt);
     }
 }
