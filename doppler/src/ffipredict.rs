@@ -267,7 +267,6 @@ pub struct deep_static_t {
 }
 
 #[repr(C)]
-#[allow(dead_code)]
 pub struct sat_t {
     pub name:       *const c_char,
     pub nickname:   *const c_char,
@@ -306,7 +305,10 @@ pub struct sat_t {
 
 #[link(name = "gpredict")]
 extern {
-    pub fn predict_calc(sat: *mut sat_t, qth: *mut qth_t, t: c_double) -> c_void;
-    pub fn Get_Next_Tle_Set(line: *const c_char, tle: *mut tle_t) -> c_int;
     pub fn get_current_daynum() -> c_double;
+    pub fn predict_calc(sat: *mut sat_t, qth: *mut qth_t, t: c_double) -> c_void;
+
+    pub fn Get_Next_Tle_Set(line: *const c_char, tle: *mut tle_t) -> c_int;
+    pub fn select_ephemeris(sat: *mut sat_t) -> c_void;
+    pub fn gtk_sat_data_init_sat(sat: *mut sat_t, sat: *mut qth_t) -> c_void;
 }

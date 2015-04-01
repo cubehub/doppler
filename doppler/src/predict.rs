@@ -26,7 +26,7 @@
 use ffipredict;
 
 use std::ffi::{CString};
-use libc::{c_char};
+use libc::{c_char, c_double};
 use std::default::Default;
 use std::slice::bytes::copy_memory;
 use std::mem::transmute;
@@ -89,7 +89,7 @@ fn create_tle_t(tle: Tle) -> Result<ffipredict::tle_t, &'static str> {
     copy_memory(&mut buf[2], line2.as_bytes_with_nul());
 
 
-    let tle_set_result = unsafe { ffipredict::Get_Next_Tle_Set(transmute::<&u8, *const c_char>(&buf[0][0]) , &mut tle_t)};
+    let tle_set_result = unsafe { ffipredict::Get_Next_Tle_Set(transmute::<&u8, *const c_char>(&buf[0][0]), &mut tle_t)};
 
     if tle_set_result == 1 {
         Ok(tle_t)
@@ -110,7 +110,7 @@ impl Predict {
         let pos: ffipredict::vector_t = Default::default();
         let vel: ffipredict::vector_t = Default::default();
 
-        let sat = ffipredict::sat_t{
+        let mut sat = ffipredict::sat_t{
             name: CString::new("").unwrap().as_ptr(),
             nickname: CString::new("").unwrap().as_ptr(),
             website: CString::new("").unwrap().as_ptr(),
@@ -146,7 +146,7 @@ impl Predict {
             //..Default::default()
         };
 
-        let qth = ffipredict::qth_t {
+        let mut qth = ffipredict::qth_t {
             name: CString::new("").unwrap().as_ptr(),
             loc: CString::new("").unwrap().as_ptr(),
             desc: CString::new("").unwrap().as_ptr(),
@@ -157,13 +157,15 @@ impl Predict {
             wx: CString::new("").unwrap().as_ptr(),
         };
 
+        unsafe {ffipredict::select_ephemeris(&mut sat)};
+        unsafe {ffipredict::gtk_sat_data_init_sat(&mut sat, &mut qth)};
+
         Predict{sat: sat, qth: qth}
     }
 
     pub fn update(&mut self) {
-        //let julian_time_now = unsafe {ffipredict::get_current_daynum()};
-        let julian_time_now = 2457112.9;
-        println!("julian: {:?}", julian_time_now);
+        let julian_time_now: c_double = unsafe {ffipredict::get_current_daynum()};
         unsafe {ffipredict::predict_calc(&mut self.sat, &mut self.qth, julian_time_now)};
+        println!("az: {:.*}", 4, self.sat.az);
     }
 }
