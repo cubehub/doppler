@@ -23,6 +23,8 @@
  */
 
 
+#![feature(old_io)]
+#![feature(std_misc)]
 // import local modules
 extern crate doppler;
 use doppler::predict as predict;
@@ -61,13 +63,13 @@ fn main() {
         println!("\tlocation        : {}", args.get_str("--location"));
         println!("\ttime            : {}", args.get_str("--time"));
         println!("\tfrequency       : {} Hz", args.get_str("--freq"));
-        println!("\tfrequency shift : {} Hz", args.get_str("--shift"));
+        println!("\tfrequency shift : {} Hz\n\n\n", args.get_str("--shift"));
     }
 
     let tle: predict::Tle = predict::Tle{
         name: "ESTCUBE 1".to_string(),
-        line1: "1 39161U 13021C   15048.48339150  .00001629  00000-0  27460-3 0  9998".to_string(),
-        line2: "2 39161  98.0776 132.4584 0009543 342.5605  17.5261 14.70812859 95643".to_string()
+        line1: "1 39161U 13021C   15091.47675532  .00001890  00000-0  31643-3 0  9990".to_string(),
+        line2: "2 39161  98.0727 175.0786 0009451 192.0216 168.0788 14.70951130101965".to_string()
     };
 
     let location: predict::Location = predict::Location{lat_deg:58.64560, lon_deg: 23.15163, alt_m: 8};
@@ -79,6 +81,10 @@ fn main() {
     loop {
         periodic.recv().unwrap();
         predict.update();
-        println!("{:?}", predict.sat.alt);
+        println!("az         : {:.*}°", 2, predict.sat.az_deg);
+        println!("el         : {:.*}°", 2, predict.sat.el_deg);
+        println!("range      : {:.*} km", 0, predict.sat.range_km);
+        println!("range rate : {:.*} km/sec\n", 3, predict.sat.range_rate_km_sec);
+
     }
 }

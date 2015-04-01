@@ -43,9 +43,47 @@ pub struct Location {
     pub alt_m: i32,
 }
 
+#[derive(Default)]
+pub struct Sat {
+    /// next AOS
+    pub aos:                f64,
+
+    /// next LOS
+    pub los:                f64,
+
+    /// azimuth [deg]
+    pub az_deg:             f64,
+
+    /// elevation [deg]
+    pub el_deg:             f64,
+
+    /// range [km]
+    pub range_km:           f64,
+
+    /// range rate [km/sec]
+    pub range_rate_km_sec:  f64,
+
+    /// SSP latitude [deg]
+    pub lat_deg:            f64,
+
+    /// SSP longitude [deg]
+    pub lon_deg:            f64,
+
+    /// altitude [km]
+    pub alt_km:             f64,
+
+    /// velocity [km/s]
+    pub vel_km_s:           f64,
+
+    /// orbit number
+    pub orbit_nr:           u64,
+}
+
 pub struct Predict {
-    pub sat: ffipredict::sat_t,
-    qth: ffipredict::qth_t,
+    pub sat: Sat,
+
+    p_sat: ffipredict::sat_t,
+    p_qth: ffipredict::qth_t,
 }
 
 
@@ -110,7 +148,7 @@ impl Predict {
         let pos: ffipredict::vector_t = Default::default();
         let vel: ffipredict::vector_t = Default::default();
 
-        let mut sat = ffipredict::sat_t{
+        let mut sat_t = ffipredict::sat_t{
             name: b"placeholder\0".as_ptr() as *const i8,
             nickname: b"placeholder\0".as_ptr() as *const i8,
             website: b"placeholder\0".as_ptr() as *const i8,
@@ -143,9 +181,9 @@ impl Predict {
             meanmo: 0.0,
             orbit: 0,
             otype: ffipredict::orbit_type_t::ORBIT_TYPE_UNKNOWN,
-            //..Default::default()
         };
 
+        let sat: Sat = Default::default();
         let mut qth = ffipredict::qth_t {
             name: b"placeholder\0".as_ptr() as *const i8,
             loc: b"placeholder\0".as_ptr() as *const i8,
@@ -157,15 +195,26 @@ impl Predict {
             wx: b"placeholder\0".as_ptr() as *const i8,
         };
 
-        unsafe {ffipredict::select_ephemeris(&mut sat)};
-        unsafe {ffipredict::gtk_sat_data_init_sat(&mut sat, &mut qth)};
+        unsafe {ffipredict::select_ephemeris(&mut sat_t)};
+        unsafe {ffipredict::gtk_sat_data_init_sat(&mut sat_t, &mut qth)};
 
-        Predict{sat: sat, qth: qth}
+        Predict{sat: sat, p_sat: sat_t, p_qth: qth}
     }
 
     pub fn update(&mut self) {
         let julian_time_now: c_double = unsafe {ffipredict::get_current_daynum()};
-        unsafe {ffipredict::predict_calc(&mut self.sat, &mut self.qth, julian_time_now)};
-        println!("az: {:.*}", 4, self.sat.az);
+        unsafe {ffipredict::predict_calc(&mut self.p_sat, &mut self.p_qth, julian_time_now)};
+
+        self.sat.aos                = self.p_sat.aos;
+        self.sat.los                = self.p_sat.los;
+        self.sat.az_deg             = self.p_sat.az;
+        self.sat.el_deg             = self.p_sat.el;
+        self.sat.range_km           = self.p_sat.range;
+        self.sat.range_rate_km_sec  = self.p_sat.range_rate;
+        self.sat.lat_deg            = self.p_sat.ssplat;
+        self.sat.lon_deg            = self.p_sat.ssplon;
+        self.sat.alt_km             = self.p_sat.alt;
+        self.sat.vel_km_s           = self.p_sat.velo;
+        self.sat.orbit_nr           = self.p_sat.orbit;
     }
 }
