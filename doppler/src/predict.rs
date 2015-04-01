@@ -111,9 +111,9 @@ impl Predict {
         let vel: ffipredict::vector_t = Default::default();
 
         let mut sat = ffipredict::sat_t{
-            name: CString::new("").unwrap().as_ptr(),
-            nickname: CString::new("").unwrap().as_ptr(),
-            website: CString::new("").unwrap().as_ptr(),
+            name: b"placeholder\0".as_ptr() as *const i8,
+            nickname: b"placeholder\0".as_ptr() as *const i8,
+            website: b"placeholder\0".as_ptr() as *const i8,
             tle: tle_t,
             flags: 0,
             sgps: sgps,
@@ -147,14 +147,14 @@ impl Predict {
         };
 
         let mut qth = ffipredict::qth_t {
-            name: CString::new("").unwrap().as_ptr(),
-            loc: CString::new("").unwrap().as_ptr(),
-            desc: CString::new("").unwrap().as_ptr(),
+            name: b"placeholder\0".as_ptr() as *const i8,
+            loc: b"placeholder\0".as_ptr() as *const i8,
+            desc: b"placeholder\0".as_ptr() as *const i8,
             lat: location.lat_deg,
             lon: location.lon_deg,
             alt: location.alt_m,
-            qra: CString::new("").unwrap().as_ptr(),
-            wx: CString::new("").unwrap().as_ptr(),
+            qra: b"placeholder\0".as_ptr() as *const i8,
+            wx: b"placeholder\0".as_ptr() as *const i8,
         };
 
         unsafe {ffipredict::select_ephemeris(&mut sat)};
