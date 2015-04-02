@@ -201,9 +201,13 @@ impl Predict {
         Predict{sat: sat, p_sat: sat_t, p_qth: qth}
     }
 
-    pub fn update(&mut self) {
-        let julian_time_now: c_double = unsafe {ffipredict::get_current_daynum()};
-        unsafe {ffipredict::predict_calc(&mut self.p_sat, &mut self.p_qth, julian_time_now)};
+    pub fn update(&mut self, timeoption: Option<c_double>) {
+        let juliantime  = match timeoption {
+            Some(t) => t,
+            None => unsafe {ffipredict::get_current_daynum()}
+        };
+
+        unsafe {ffipredict::predict_calc(&mut self.p_sat, &mut self.p_qth, juliantime)};
 
         self.sat.aos                = self.p_sat.aos;
         self.sat.los                = self.p_sat.los;

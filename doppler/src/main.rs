@@ -80,11 +80,11 @@ fn main() {
 
     loop {
         periodic.recv().unwrap();
-        predict.update();
-        println!("az         : {:.*}°", 2, predict.sat.az_deg);
-        println!("el         : {:.*}°", 2, predict.sat.el_deg);
-        println!("range      : {:.*} km", 0, predict.sat.range_km);
-        println!("range rate : {:.*} km/sec\n", 3, predict.sat.range_rate_km_sec);
+        predict.update(None);
+        println!("az         : {:.2}°", predict.sat.az_deg);
+        println!("el         : {:.2}°", predict.sat.el_deg);
+        println!("range      : {:.0} km", predict.sat.range_km);
+        println!("range rate : {:.3} km/sec\n", predict.sat.range_rate_km_sec);
 
     }
 }
