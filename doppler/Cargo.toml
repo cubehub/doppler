@@ -6,3 +6,4 @@ authors = ["Andres Vahter <andres.vahter@gmail.com>"]
 
 [dependencies]
 docopt = "*"
+libc = "0.1.5"
