@@ -25,7 +25,6 @@
 use libc::{c_void, c_int, c_char, c_double, c_ulong, c_uint};
 
 #[repr(C)]
-#[derive(Copy)]
 #[allow(dead_code)]
 #[allow(non_camel_case_types)]
 pub enum op_stat_t {
@@ -39,7 +38,6 @@ pub enum op_stat_t {
 }
 
 #[repr(C)]
-#[derive(Copy)]
 #[allow(dead_code)]
 #[allow(non_camel_case_types)]
 pub enum orbit_type_t {
