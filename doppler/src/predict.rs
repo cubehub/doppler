@@ -28,7 +28,7 @@ use ffipredict;
 use std::ffi::{CString};
 use libc::{c_char, c_double};
 use std::default::Default;
-use std::slice::bytes::copy_memory;
+use std::{cmp, ptr};
 use std::mem::transmute;
 
 pub struct Tle {
@@ -86,6 +86,13 @@ pub struct Predict {
     p_qth: ffipredict::qth_t,
 }
 
+fn copy_memory(src: &[u8], dst: &mut [u8]) -> usize {
+    let len = cmp::min(src.len(), dst.len());
+    unsafe {
+        ptr::copy_nonoverlapping(&src[0], &mut dst[0], len);
+    }
+    len
+}
 
 fn create_tle_t(tle: Tle) -> Result<ffipredict::tle_t, &'static str> {
     let mut tle_t = ffipredict::tle_t {
@@ -122,9 +129,9 @@ fn create_tle_t(tle: Tle) -> Result<ffipredict::tle_t, &'static str> {
     let line2 = CString::new(tle.line2).unwrap();
     let mut buf = [[0u8; 80]; 3];
 
-    copy_memory(&mut buf[0], name.as_bytes_with_nul());
-    copy_memory(&mut buf[1], line1.as_bytes_with_nul());
-    copy_memory(&mut buf[2], line2.as_bytes_with_nul());
+    copy_memory(name.as_bytes_with_nul(), &mut buf[0]);
+    copy_memory(line1.as_bytes_with_nul(), &mut buf[1]);
+    copy_memory(line2.as_bytes_with_nul(), &mut buf[2]);
 
 
     let tle_set_result = unsafe { ffipredict::Get_Next_Tle_Set(transmute::<&u8, *const c_char>(&buf[0][0]), &mut tle_t)};
