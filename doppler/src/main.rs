@@ -23,16 +23,13 @@
  */
 
 
-#![feature(old_io)]
-#![feature(std_misc)]
 // import local modules
 extern crate doppler;
 use doppler::predict as predict;
 use doppler::usage as usage;
 
 // import external modules
-use std::old_io::Timer;
-use std::time::Duration;
+use std::thread;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -75,16 +72,16 @@ fn main() {
     let location: predict::Location = predict::Location{lat_deg:58.64560, lon_deg: 23.15163, alt_m: 8};
     let mut predict: predict::Predict = predict::Predict::new(tle, location);
 
-    let mut timer = Timer::new().unwrap();
-    let periodic = timer.periodic(Duration::milliseconds(1000));
+    let thread = thread::scoped(move || {
+        loop {
+            predict.update(None);
+            println!("az         : {:.2}°", predict.sat.az_deg);
+            println!("el         : {:.2}°", predict.sat.el_deg);
+            println!("range      : {:.0} km", predict.sat.range_km);
+            println!("range rate : {:.3} km/sec\n", predict.sat.range_rate_km_sec);
+            thread::sleep_ms(1000);
+        }
+    });
 
-    loop {
-        periodic.recv().unwrap();
-        predict.update(None);
-        println!("az         : {:.2}°", predict.sat.az_deg);
-        println!("el         : {:.2}°", predict.sat.el_deg);
-        println!("range      : {:.0} km", predict.sat.range_km);
-        println!("range rate : {:.3} km/sec\n", predict.sat.range_rate_km_sec);
-
-    }
+    let output = thread.join();
 }
