@@ -26,6 +26,7 @@
 // import local modules
 extern crate doppler;
 use doppler::predict as predict;
+use doppler::tle as tle;
 use doppler::usage as usage;
 
 // import external modules
@@ -63,15 +64,9 @@ fn main() {
         println!("\tfrequency shift : {} Hz\n\n\n", args.get_str("--shift"));
     }
 
-    let tle: predict::Tle = predict::Tle{
-        name: "ESTCUBE 1".to_string(),
-        line1: "1 39161U 13021C   15091.47675532  .00001890  00000-0  31643-3 0  9990".to_string(),
-        line2: "2 39161  98.0727 175.0786 0009451 192.0216 168.0788 14.70951130101965".to_string()
-    };
-
     let location: predict::Location = predict::Location{lat_deg:58.64560, lon_deg: 23.15163, alt_m: 8};
+    let tle = tle::create_tle_from_file("ESTCUBE 1".to_string(), args.get_str("--tlefile").to_string()).unwrap();
     let mut predict: predict::Predict = predict::Predict::new(tle, location);
-
 
     loop {
         predict.update(None);

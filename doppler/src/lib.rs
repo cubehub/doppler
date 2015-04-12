@@ -26,13 +26,14 @@ extern crate libc;
 extern crate docopt;
 
 pub mod ffipredict;
+pub mod tle;
 pub mod predict;
 pub mod usage;
 
 
 #[test]
-fn test_update() {
-    let tle: predict::Tle = predict::Tle{
+fn test_predict_update() {
+    let tle: tle::Tle = tle::Tle{
         name: "ESTCUBE 1".to_string(),
         line1: "1 39161U 13021C   15091.47675532  .00001890  00000-0  31643-3 0  9990".to_string(),
         line2: "2 39161  98.0727 175.0786 0009451 192.0216 168.0788 14.70951130101965".to_string()

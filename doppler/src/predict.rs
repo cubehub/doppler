@@ -24,18 +24,10 @@
 
 
 use ffipredict;
+use tle;
 
-use std::ffi::{CString};
-use libc::{c_char, c_double};
+use libc::{c_double};
 use std::default::Default;
-use std::{cmp, ptr};
-use std::mem::transmute;
-
-pub struct Tle {
-    pub name: String,
-    pub line1: String,
-    pub line2: String,
-}
 
 pub struct Location {
     pub lat_deg: f64,
@@ -86,68 +78,10 @@ pub struct Predict {
     p_qth: ffipredict::qth_t,
 }
 
-fn copy_memory(src: &[u8], dst: &mut [u8]) -> usize {
-    let len = cmp::min(src.len(), dst.len());
-    unsafe {
-        ptr::copy_nonoverlapping(&src[0], &mut dst[0], len);
-    }
-    len
-}
-
-fn create_tle_t(tle: Tle) -> Result<ffipredict::tle_t, &'static str> {
-    let mut tle_t = ffipredict::tle_t {
-        epoch: 0.0,
-        epoch_year: 0,
-        epoch_day: 0,
-        epoch_fod: 0.0,
-        xndt2o: 0.0,
-        xndd6o: 0.0,
-        bstar: 0.0,
-        xincl: 0.0,
-        xnodeo: 0.0,
-        eo: 0.0,
-        omegao: 0.0,
-        xmo: 0.0,
-        xno: 0.0,
-
-        catnr: 0,
-        elset: 0,
-        revnum: 0,
-
-        sat_name: [0; 25],
-        idesg: [0; 9],
-        status: ffipredict::op_stat_t::OP_STAT_UNKNOWN,
-
-        xincl1: 0.0,
-        xnodeo1: 0.0,
-        omegao1: 0.0,
-        //..Default::default()
-    };
-
-    let name = CString::new(tle.name).unwrap();
-    let line1 = CString::new(tle.line1).unwrap();
-    let line2 = CString::new(tle.line2).unwrap();
-    let mut buf = [[0u8; 80]; 3];
-
-    copy_memory(name.as_bytes_with_nul(), &mut buf[0]);
-    copy_memory(line1.as_bytes_with_nul(), &mut buf[1]);
-    copy_memory(line2.as_bytes_with_nul(), &mut buf[2]);
-
-
-    let tle_set_result = unsafe { ffipredict::Get_Next_Tle_Set(transmute::<&u8, *const c_char>(&buf[0][0]), &mut tle_t)};
-
-    if tle_set_result == 1 {
-        Ok(tle_t)
-    }
-    else {
-        Err("error in TLE parsing")
-    }
-}
-
 impl Predict {
 
-    pub fn new(tle: Tle, location: Location) -> Predict {
-        let tle_t = create_tle_t(tle).unwrap();
+    pub fn new(tle: tle::Tle, location: Location) -> Predict {
+        let tle_t = tle::create_tle_t(tle).unwrap();
 
         let sgps: ffipredict::sgpsdp_static_t = Default::default();
         let dps: ffipredict::deep_static_t = Default::default();
