@@ -22,9 +22,13 @@
  * SOFTWARE.
  */
 
-use docopt;
-use docopt::Docopt;
+use clap::{App, Arg, SubCommand};
+use self::InputType::{F32, I16};
+use self::Mode::{ConstMode, TrackMode};
 
+use std::fmt;
+
+/*
 static USAGE: &'static str = "
 doppler <andres.vahter@gmail.com>
 
@@ -52,9 +56,152 @@ Track mode options:
     --shift <Hz>                Constant frequency shift in Hz [default: 0].
 ";
 
-pub fn args() -> docopt::ArgvMap {
-    let args = Docopt::new(USAGE)
-                      .and_then(|dopt| dopt.parse())
-                      .unwrap_or_else(|e| e.exit());
+*/
+
+pub enum Mode {
+    ConstMode,
+    TrackMode,
+}
+
+pub enum InputType {
+    F32,
+    I16,
+}
+
+impl fmt::Display for InputType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            InputType::F32 => {write!(f, "f32")},
+            InputType::I16 => {write!(f, "i16")},
+        }
+    }
+}
+
+pub struct ConstModeArgs {
+    pub shift: Option<u32>,
+}
+
+pub struct TrackModeArgs {
+    pub tlefile: Option<String>,
+    pub tlename: Option<String>,
+    pub location: Option<String>,
+    pub time: Option<u32>,
+    pub frequency: Option<u32>,
+    pub shift: Option<u32>,
+}
+
+pub struct CommandArgs {
+    pub mode: Option<Mode>,
+
+    pub samplerate: Option<u32>,
+    pub inputtype: Option<InputType>,
+
+    pub constargs: ConstModeArgs,
+    pub trackargs: TrackModeArgs,
+}
+
+pub fn args() -> CommandArgs {
+    let matches = App::new("doppler")
+                .author("Andres Vahter <andres.vahter@gmail.com>")
+                .version(env!("CARGO_PKG_VERSION"))
+                .about("Compensates IQ data stream doppler shift based on TLE information and constant shift for IQ data is also possible.")
+
+
+                .subcommand(SubCommand::new("const")
+                    .about("Constant shift mode")
+
+                    .arg(Arg::with_name("SAMPLERATE")
+                       .long("samplerate")
+                       .short("s")
+                       .help("IQ data samplerate")
+                       .required(true)
+                       .takes_value(true))
+
+                    .arg(Arg::with_name("INTYPE")
+                       .long("intype")
+                       .short("i")
+                       .help("IQ data type")
+                       .required(true)
+                       .possible_values(vec!["i16", "f32"])
+                       .takes_value(true))
+
+                    .arg(Arg::with_name("SHIFT")
+                       .long("shift")
+                       .help("frequency shift in Hz")
+                       .required(true)
+                       .takes_value(true)))
+
+
+                .subcommand(SubCommand::new("track")
+                    .about("Doppler tracking mode")
+
+                    .arg(Arg::with_name("SAMPLERATE")
+                       .long("samplerate")
+                       .short("s")
+                       .help("IQ data samplerate")
+                       .required(true)
+                       .takes_value(true))
+
+                    .arg(Arg::with_name("INTYPE")
+                       .long("intype")
+                       .short("i")
+                       .help("IQ data type")
+                       .required(true)
+                       .possible_values(vec!["i16", "f32"])
+                       .takes_value(true))
+
+                    .arg(Arg::with_name("TLEFILE")
+                       .long("tlefile")
+                       .help("TLE file: eg. http://www.celestrak.com/NORAD/elements/cubesat.txt")
+                       .required(true)
+                       .takes_value(true)))
+
+                .get_matches();
+
+
+    let mut args = CommandArgs {
+                    mode : None,
+
+                    samplerate : None,
+                    inputtype : None,
+
+                    constargs : ConstModeArgs {
+                        shift: None,
+                    },
+
+                    trackargs : TrackModeArgs {
+                        tlefile : None,
+                        tlename : None,
+                        location: None,
+                        time : None,
+                        frequency : None,
+                        shift : None,
+                    },
+                };
+
+
+    match matches.subcommand_name() {
+        Some("const")   => {
+            args.mode = Some(ConstMode);
+            let submatches = matches.subcommand_matches("const").unwrap();
+            args.samplerate = Some(value_t_or_exit!(submatches.value_of("SAMPLERATE"), u32));
+
+            match submatches.value_of("INTYPE").unwrap() {
+                "f32" => {args.inputtype = Some(F32);},
+                "i16" => {args.inputtype = Some(I16);},
+                _ => unreachable!()
+            }
+
+            args.constargs.shift = Some(value_t_or_exit!(submatches.value_of("SHIFT"), u32));
+        },
+
+        Some("track") => {
+            args.mode = Some(TrackMode);
+        },
+
+        _ => unreachable!()
+    }
+
     args
 }
+

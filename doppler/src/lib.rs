@@ -23,7 +23,9 @@
  */
 
 extern crate libc;
-extern crate docopt;
+
+#[macro_use]
+extern crate clap;
 
 pub mod ffipredict;
 pub mod tle;

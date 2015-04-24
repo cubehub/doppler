@@ -28,44 +28,44 @@ extern crate doppler;
 use doppler::predict as predict;
 use doppler::tle as tle;
 use doppler::usage as usage;
+use doppler::usage::Mode::{ConstMode, TrackMode};
 
 // import external modules
 use std::thread;
 
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-
-
 fn main() {
+
     let args = usage::args();
 
-    //println!("{:?}", args);
+    println!("doppler {} andres.vahter@gmail.com\n\n", env!("CARGO_PKG_VERSION"));
 
-    println!("doppler {} andres.vahter@gmail.com\n\n", VERSION);
+    match args.mode.unwrap() {
+        ConstMode => {
+            println!("constant shift mode");
 
-    if args.get_bool("const") {
-        println!("constant shift mode");
+            println!("\tIQ samplerate   : {}", args.samplerate.unwrap());
+            println!("\tIQ data type    : {}\n", args.inputtype.unwrap());
 
-        println!("\tIQ samplerate   : {}", args.get_str("--samplerate"));
-        println!("\tIQ data type    : {}\n", args.get_str("--intype"));
+            println!("\tfrequency shift : {} Hz", args.constargs.shift.unwrap());
+        },
 
-        println!("\tfrequency shift : {} Hz", args.get_str("--shift"));
+        TrackMode => {
+            println!("tracking mode");
+
+            //println!("\tIQ samplerate   : {}", args.samplerate);
+            //println!("\tIQ data type    : {}\n", args.inputtype);
+
+            /*println!("\tTLE file        : {}", args.get_str("--tlefile"));
+            println!("\tTLE name        : {}", args.get_str("--tlename"));
+            println!("\tlocation        : {}", args.get_str("--location"));
+            println!("\ttime            : {}", args.get_str("--time"));
+            println!("\tfrequency       : {} Hz", args.get_str("--freq"));
+            println!("\tfrequency shift : {} Hz\n\n\n", args.get_str("--shift"));*/
+        },
     }
-    else if args.get_bool("track") {
-        println!("tracking mode");
 
-        println!("\tIQ samplerate   : {}", args.get_str("--samplerate"));
-        println!("\tIQ data type    : {}\n", args.get_str("--intype"));
-
-        println!("\tTLE file        : {}", args.get_str("--tlefile"));
-        println!("\tTLE name        : {}", args.get_str("--tlename"));
-        println!("\tlocation        : {}", args.get_str("--location"));
-        println!("\ttime            : {}", args.get_str("--time"));
-        println!("\tfrequency       : {} Hz", args.get_str("--freq"));
-        println!("\tfrequency shift : {} Hz\n\n\n", args.get_str("--shift"));
-    }
-
-    let location: predict::Location = predict::Location{lat_deg:58.64560, lon_deg: 23.15163, alt_m: 8};
-    let tle = tle::create_tle_from_file("ESTCUBE 1".to_string(), args.get_str("--tlefile").to_string()).unwrap();
+    /*let location: predict::Location = predict::Location{lat_deg:58.64560, lon_deg: 23.15163, alt_m: 8};
+    let tle = tle::create_tle_from_file(args.get_str("--tlename").to_string(), args.get_str("--tlefile").to_string()).unwrap();
     let mut predict: predict::Predict = predict::Predict::new(tle, location);
 
     loop {
@@ -77,4 +77,6 @@ fn main() {
 
         thread::sleep_ms(1000);
     }
+    */
+
 }
