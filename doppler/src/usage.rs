@@ -27,6 +27,7 @@ use self::InputType::{F32, I16};
 use self::Mode::{ConstMode, TrackMode};
 
 use std::fmt;
+use std::process::exit;
 
 /*
 static USAGE: &'static str = "
@@ -77,6 +78,13 @@ impl fmt::Display for InputType {
     }
 }
 
+#[derive(Debug)]
+pub struct Location {
+    pub lat: f32,
+    pub lon: f32,
+    pub alt: f32,
+}
+
 pub struct ConstModeArgs {
     pub shift: Option<u32>,
 }
@@ -84,10 +92,10 @@ pub struct ConstModeArgs {
 pub struct TrackModeArgs {
     pub tlefile: Option<String>,
     pub tlename: Option<String>,
-    pub location: Option<String>,
-    pub time: Option<u32>,
+    pub location: Option<Location>,
+    pub time: Option<f32>,
     pub frequency: Option<u32>,
-    pub shift: Option<u32>,
+    pub offset: Option<u32>,
 }
 
 pub struct CommandArgs {
@@ -98,6 +106,38 @@ pub struct CommandArgs {
 
     pub constargs: ConstModeArgs,
     pub trackargs: TrackModeArgs,
+}
+
+fn parse_location(location: &String) -> Result<Location, String> {
+    if location.contains("lat") && location.contains("lon") && location.contains("alt"){
+        let split = location.split(",");
+
+        let mut lat: Option<f32> = None;
+        let mut lon: Option<f32> = None;
+        let mut alt: Option<f32> = None;
+
+        for s in split {
+            if s.contains("lat") && s.contains("=") {
+                lat = s.split("=").nth(1).unwrap().parse::<f32>().ok();
+            }
+            else if s.contains("lon") && s.contains("=") {
+                lon = s.split("=").nth(1).unwrap().parse::<f32>().ok();
+            }
+            else if s.contains("alt") && s.contains("=") {
+                alt = s.split("=").nth(1).unwrap().parse::<f32>().ok();
+            }
+        }
+
+        if lat.is_some() && lon.is_some() && alt.is_some() {
+            Ok(Location{lat: lat.unwrap(), lon: lon.unwrap(), alt: alt.unwrap()})
+        }
+        else {
+            Err(format!("{} isn't a valid value for --location\n\t[use as: lat=58.64560,lon=23.15163,alt=8]", location).to_string())
+        }
+    }
+    else {
+        Err("--location should be defined as: lat=58.64560,lon=23.15163,alt=8".to_string())
+    }
 }
 
 pub fn args() -> CommandArgs {
@@ -154,6 +194,36 @@ pub fn args() -> CommandArgs {
                        .long("tlefile")
                        .help("TLE file: eg. http://www.celestrak.com/NORAD/elements/cubesat.txt")
                        .required(true)
+                       .takes_value(true))
+
+                    .arg(Arg::with_name("TLENAME")
+                       .long("tlename")
+                       .help("TLE name in TLE file: eg. ESTCUBE 1")
+                       .required(true)
+                       .takes_value(true))
+
+                    .arg(Arg::with_name("LOCATION")
+                       .long("location")
+                       .help("Observer location: eg. lat=58.64560,lon=23.15163,alt=8")
+                       .required(true)
+                       .takes_value(true))
+
+                    .arg(Arg::with_name("TIME")
+                       .long("time")
+                       .help("Observation start time. If not specified current time is used")
+                       .required(false)
+                       .takes_value(true))
+
+                    .arg(Arg::with_name("FREQUENCY")
+                       .long("frequency")
+                       .help("Satellite transmitter frequency in Hz")
+                       .required(true)
+                       .takes_value(true))
+
+                    .arg(Arg::with_name("OFFSET")
+                       .long("offset")
+                       .help("Constant frequency shift in Hz. Can be used to compensate constant offset")
+                       .required(false)
                        .takes_value(true)))
 
                 .get_matches();
@@ -175,7 +245,7 @@ pub fn args() -> CommandArgs {
                         location: None,
                         time : None,
                         frequency : None,
-                        shift : None,
+                        offset : None,
                     },
                 };
 
@@ -195,8 +265,38 @@ pub fn args() -> CommandArgs {
             args.constargs.shift = Some(value_t_or_exit!(submatches.value_of("SHIFT"), u32));
         },
 
+
         Some("track") => {
             args.mode = Some(TrackMode);
+            let submatches = matches.subcommand_matches("track").unwrap();
+            args.samplerate = Some(value_t_or_exit!(submatches.value_of("SAMPLERATE"), u32));
+
+            match submatches.value_of("INTYPE").unwrap() {
+                "f32" => {args.inputtype = Some(F32);},
+                "i16" => {args.inputtype = Some(I16);},
+                _ => unreachable!()
+            }
+
+            if submatches.is_present("OFFSET") {
+                args.trackargs.offset = Some(value_t_or_exit!(submatches.value_of("OFFSET"), u32));
+            }
+
+            if submatches.is_present("TIME") {
+                args.trackargs.time = Some(value_t_or_exit!(submatches.value_of("TIME"), f32));
+            }
+
+            args.trackargs.tlefile = Some(submatches.value_of("TLEFILE").unwrap().to_string());
+            args.trackargs.tlename = Some(submatches.value_of("TLENAME").unwrap().to_string());
+            args.trackargs.frequency = Some(value_t_or_exit!(submatches.value_of("FREQUENCY"), u32));
+
+            let location = parse_location(&submatches.value_of("LOCATION").unwrap().to_string());
+            match location {
+                Ok(loc) => { args.trackargs.location = Some(loc);},
+                Err(e) => {
+                    println!("{}.", e);
+                    exit(1);
+                }
+            }
         },
 
         _ => unreachable!()

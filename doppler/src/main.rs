@@ -52,15 +52,15 @@ fn main() {
         TrackMode => {
             println!("tracking mode");
 
-            //println!("\tIQ samplerate   : {}", args.samplerate);
-            //println!("\tIQ data type    : {}\n", args.inputtype);
+            println!("\tIQ samplerate   : {}", args.samplerate.unwrap());
+            println!("\tIQ data type    : {}\n", args.inputtype.unwrap());
 
-            /*println!("\tTLE file        : {}", args.get_str("--tlefile"));
-            println!("\tTLE name        : {}", args.get_str("--tlename"));
-            println!("\tlocation        : {}", args.get_str("--location"));
-            println!("\ttime            : {}", args.get_str("--time"));
-            println!("\tfrequency       : {} Hz", args.get_str("--freq"));
-            println!("\tfrequency shift : {} Hz\n\n\n", args.get_str("--shift"));*/
+            println!("\tTLE file        : {}", args.trackargs.tlefile.unwrap());
+            println!("\tTLE name        : {}", args.trackargs.tlename.unwrap());
+            println!("\tlocation        : {:?}", args.trackargs.location.unwrap());
+            println!("\ttime            : {:.3}", args.trackargs.time.unwrap_or(0.0));
+            println!("\tfrequency       : {} Hz", args.trackargs.frequency.unwrap());
+            println!("\toffset          : {} Hz\n\n\n", args.trackargs.offset.unwrap_or(0));
         },
     }
 
