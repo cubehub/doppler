@@ -25,13 +25,14 @@
 
 // import local modules
 extern crate doppler;
-use doppler::predict as predict;
-use doppler::tle as tle;
-use doppler::usage as usage;
+use doppler::predict;
+use doppler::tle;
+use doppler::usage;
 use doppler::usage::Mode::{ConstMode, TrackMode};
 
 // import external modules
 use std::thread;
+use std::process::exit;
 
 fn main() {
 
@@ -43,40 +44,50 @@ fn main() {
         ConstMode => {
             println!("constant shift mode");
 
-            println!("\tIQ samplerate   : {}", args.samplerate.unwrap());
-            println!("\tIQ data type    : {}\n", args.inputtype.unwrap());
+            println!("\tIQ samplerate   : {}", args.samplerate.as_ref().unwrap());
+            println!("\tIQ data type    : {}\n", args.inputtype.as_ref().unwrap());
 
-            println!("\tfrequency shift : {} Hz", args.constargs.shift.unwrap());
+            println!("\tfrequency shift : {} Hz", args.constargs.shift.as_ref().unwrap());
         },
+
 
         TrackMode => {
             println!("tracking mode");
 
-            println!("\tIQ samplerate   : {}", args.samplerate.unwrap());
-            println!("\tIQ data type    : {}\n", args.inputtype.unwrap());
+            println!("\tIQ samplerate   : {}", args.samplerate.as_ref().unwrap());
+            println!("\tIQ data type    : {}\n", args.inputtype.as_ref().unwrap());
 
-            println!("\tTLE file        : {}", args.trackargs.tlefile.unwrap());
-            println!("\tTLE name        : {}", args.trackargs.tlename.unwrap());
-            println!("\tlocation        : {:?}", args.trackargs.location.unwrap());
+            println!("\tTLE file        : {}", args.trackargs.tlefile.as_ref().unwrap());
+            println!("\tTLE name        : {}", args.trackargs.tlename.as_ref().unwrap());
+            println!("\tlocation        : {:?}", args.trackargs.location.as_ref().unwrap());
             println!("\ttime            : {:.3}", args.trackargs.time.unwrap_or(0.0));
-            println!("\tfrequency       : {} Hz", args.trackargs.frequency.unwrap());
+            println!("\tfrequency       : {} Hz", args.trackargs.frequency.as_ref().unwrap());
             println!("\toffset          : {} Hz\n\n\n", args.trackargs.offset.unwrap_or(0));
+
+
+            let l = args.trackargs.location.unwrap();
+            let location: predict::Location = predict::Location{lat_deg: l.lat, lon_deg: l.lon, alt_m: l.alt};
+
+            let tle = match tle::create_tle_from_file(args.trackargs.tlename.unwrap(), args.trackargs.tlefile.unwrap()) {
+                Ok(t) => {t},
+                Err(e) => {
+                    println!("{}", e);
+                    exit(1);
+                }
+            };
+
+            let mut predict: predict::Predict = predict::Predict::new(tle, location);
+
+
+            loop {
+                predict.update(None);
+                println!("az         : {:.2}°", predict.sat.az_deg);
+                println!("el         : {:.2}°", predict.sat.el_deg);
+                println!("range      : {:.0} km", predict.sat.range_km);
+                println!("range rate : {:.3} km/sec\n", predict.sat.range_rate_km_sec);
+
+                thread::sleep_ms(1000);
+            }
         },
     }
-
-    /*let location: predict::Location = predict::Location{lat_deg:58.64560, lon_deg: 23.15163, alt_m: 8};
-    let tle = tle::create_tle_from_file(args.get_str("--tlename").to_string(), args.get_str("--tlefile").to_string()).unwrap();
-    let mut predict: predict::Predict = predict::Predict::new(tle, location);
-
-    loop {
-        predict.update(None);
-        println!("az         : {:.2}°", predict.sat.az_deg);
-        println!("el         : {:.2}°", predict.sat.el_deg);
-        println!("range      : {:.0} km", predict.sat.range_km);
-        println!("range rate : {:.3} km/sec\n", predict.sat.range_rate_km_sec);
-
-        thread::sleep_ms(1000);
-    }
-    */
-
 }

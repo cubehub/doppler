@@ -80,9 +80,9 @@ impl fmt::Display for InputType {
 
 #[derive(Debug)]
 pub struct Location {
-    pub lat: f32,
-    pub lon: f32,
-    pub alt: f32,
+    pub lat: f64,
+    pub lon: f64,
+    pub alt: i32,
 }
 
 pub struct ConstModeArgs {
@@ -112,19 +112,19 @@ fn parse_location(location: &String) -> Result<Location, String> {
     if location.contains("lat") && location.contains("lon") && location.contains("alt"){
         let split = location.split(",");
 
-        let mut lat: Option<f32> = None;
-        let mut lon: Option<f32> = None;
-        let mut alt: Option<f32> = None;
+        let mut lat: Option<f64> = None;
+        let mut lon: Option<f64> = None;
+        let mut alt: Option<i32> = None;
 
         for s in split {
             if s.contains("lat") && s.contains("=") {
-                lat = s.split("=").nth(1).unwrap().parse::<f32>().ok();
+                lat = s.split("=").nth(1).unwrap().parse::<f64>().ok();
             }
             else if s.contains("lon") && s.contains("=") {
-                lon = s.split("=").nth(1).unwrap().parse::<f32>().ok();
+                lon = s.split("=").nth(1).unwrap().parse::<f64>().ok();
             }
             else if s.contains("alt") && s.contains("=") {
-                alt = s.split("=").nth(1).unwrap().parse::<f32>().ok();
+                alt = s.split("=").nth(1).unwrap().parse::<i32>().ok();
             }
         }
 
