@@ -57,7 +57,15 @@ fn trim(line: &String) -> String {
 
 pub fn create_tle_from_file(tlename: String, pathstr: String) -> Result<Tle, String> {
     let path = Path::new(&pathstr);
-    let reader = BufReader::new(File::open(&path).unwrap());
+    let file = File::open(&path);
+    match file.as_ref() {
+        Ok(f) => {}
+        Err(e) => {
+            return Err(format!("could not open file {}", pathstr))
+        }
+    }
+
+    let reader = BufReader::new(file.unwrap());
     let mut lines = reader.lines();
 
     let mut name = String::new();
