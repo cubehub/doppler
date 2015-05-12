@@ -55,19 +55,18 @@ fn trim(line: &String) -> String {
     l
 }
 
-pub fn create_tle_from_file(tlename: String, pathstr: String) -> Result<Tle, String> {
+pub fn create_tle_from_file(tlename: &str, pathstr: &str) -> Result<Tle, String> {
     let path = Path::new(&pathstr);
     let file = File::open(&path);
     match file.as_ref() {
-        Ok(f) => {}
-        Err(e) => {
+        Ok(_) => {}
+        Err(_) => {
             return Err(format!("could not open file {}", pathstr))
         }
     }
 
     let reader = BufReader::new(file.unwrap());
     let mut lines = reader.lines();
-
     let mut name = String::new();
 
     for line in &mut lines {
