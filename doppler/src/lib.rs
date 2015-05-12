@@ -31,7 +31,7 @@ pub mod ffipredict;
 pub mod tle;
 pub mod predict;
 pub mod usage;
-
+pub mod dsp;
 
 #[test]
 fn test_predict_update() {
