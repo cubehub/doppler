@@ -1,3 +1,0 @@
-[submodule "libgpredict"]
-	path = libgpredict
-	url = https://github.com/shupp/libgpredict.git
