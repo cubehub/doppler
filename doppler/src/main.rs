@@ -29,46 +29,113 @@ use doppler::predict;
 use doppler::tle;
 use doppler::usage;
 use doppler::usage::Mode::{ConstMode, TrackMode};
+use doppler::usage::InputType::{I16, F32};
+use doppler::dsp;
 
 // import external modules
 use std::thread;
 use std::process::exit;
+use std::io;
+use std::io::Read;
+use std::io::Write;
+
+const SPEED_OF_LIGHT_M_S: f64 = 299792458.;
+const BUFFER_SIZE: usize = 8192;
+
+macro_rules! println_stderr(
+    ($($arg:tt)*) => (
+        match writeln!(&mut ::std::io::stderr(), $($arg)* ) {
+            Ok(_) => {},
+            Err(x) => panic!("Unable to write to stderr: {}", x),
+        }
+    )
+);
 
 fn main() {
-
     let args = usage::args();
 
-    println!("doppler {} andres.vahter@gmail.com\n\n", env!("CARGO_PKG_VERSION"));
+    println_stderr!("doppler {} andres.vahter@gmail.com\n\n", env!("CARGO_PKG_VERSION"));
 
-    match args.mode.unwrap() {
+    let mut stdin = io::stdin();
+    let mut stdout = io::stdout();
+    let mut inbuf: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+    let mut outbuf: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+    let mut samplenr: u32 = 0;
+    let mut outlen = 0;
+
+    let mut shift = |intype: doppler::usage::InputType, shift_hz: f64, samplerate: u32| {
+        match stdin.read(&mut inbuf) {
+            Ok(size) => {
+                match intype {
+                    I16 => {
+                        outlen = dsp::shift_frequency_i16(&inbuf[0 .. size],
+                                                    &mut samplenr,
+                                                    shift_hz,
+                                                    samplerate,
+                                                    &mut outbuf);
+                    },
+
+                    F32 => {
+                        outlen = dsp::shift_frequency_f32(&inbuf[0 .. size],
+                                                    &mut samplenr,
+                                                    args.constargs.shift.unwrap() as f64,
+                                                    args.samplerate.unwrap(),
+                                                    &mut outbuf);
+                    },
+                }
+
+                stdout.write(&outbuf[0 .. outlen]).unwrap();
+
+                if size < BUFFER_SIZE {
+                    return false;
+                }
+            }
+            Err(e) => {
+                println_stderr!("err: {:?}", e);
+                return false;
+            }
+        }
+        return true;
+    };
+
+    match *args.mode.as_ref().unwrap() {
         ConstMode => {
-            println!("constant shift mode");
+            println_stderr!("constant shift mode");
+            println_stderr!("\tIQ samplerate   : {}", args.samplerate.as_ref().unwrap());
+            println_stderr!("\tIQ input type   : {}", args.inputtype.as_ref().unwrap());
+            println_stderr!("\tIQ output type  : i16\n");
+            println_stderr!("\tfrequency shift : {} Hz", args.constargs.shift.as_ref().unwrap());
 
-            println!("\tIQ samplerate   : {}", args.samplerate.as_ref().unwrap());
-            println!("\tIQ data type    : {}\n", args.inputtype.as_ref().unwrap());
+            let intype = args.inputtype.unwrap();
+            let shift_hz = args.constargs.shift.unwrap() as f64;
+            let samplerate = args.samplerate.unwrap();
 
-            println!("\tfrequency shift : {} Hz", args.constargs.shift.as_ref().unwrap());
-        },
+            loop {
+                if !shift(intype, shift_hz, samplerate) {
+                    break;
+                }
+            }
+        }
 
 
         TrackMode => {
-            println!("tracking mode");
-
-            println!("\tIQ samplerate   : {}", args.samplerate.as_ref().unwrap());
-            println!("\tIQ data type    : {}\n", args.inputtype.as_ref().unwrap());
-
-            println!("\tTLE file        : {}", args.trackargs.tlefile.as_ref().unwrap());
-            println!("\tTLE name        : {}", args.trackargs.tlename.as_ref().unwrap());
-            println!("\tlocation        : {:?}", args.trackargs.location.as_ref().unwrap());
-            println!("\ttime            : {:.3}", args.trackargs.time.unwrap_or(0.0));
-            println!("\tfrequency       : {} Hz", args.trackargs.frequency.as_ref().unwrap());
-            println!("\toffset          : {} Hz\n\n\n", args.trackargs.offset.unwrap_or(0));
-
+            println_stderr!("tracking mode");
+            println_stderr!("\tIQ samplerate   : {}", args.samplerate.as_ref().unwrap());
+            println_stderr!("\tIQ input type   : {}", args.inputtype.as_ref().unwrap());
+            println_stderr!("\tIQ output type  : i16\n");
+            println_stderr!("\tTLE file        : {}", args.trackargs.tlefile.as_ref().unwrap());
+            println_stderr!("\tTLE name        : {}", args.trackargs.tlename.as_ref().unwrap());
+            println_stderr!("\tlocation        : {:?}", args.trackargs.location.as_ref().unwrap());
+            println_stderr!("\ttime            : {:.3}", args.trackargs.time.unwrap_or(0.0));
+            println_stderr!("\tfrequency       : {} Hz", args.trackargs.frequency.as_ref().unwrap());
+            println_stderr!("\toffset          : {} Hz\n\n\n", args.trackargs.offset.unwrap_or(0));
 
             let l = args.trackargs.location.unwrap();
             let location: predict::Location = predict::Location{lat_deg: l.lat, lon_deg: l.lon, alt_m: l.alt};
+            let tlename = args.trackargs.tlename.as_ref().unwrap();
+            let tlefile = args.trackargs.tlefile.as_ref().unwrap();
 
-            let tle = match tle::create_tle_from_file(args.trackargs.tlename.unwrap(), args.trackargs.tlefile.unwrap()) {
+            let tle = match tle::create_tle_from_file(&tlename, &tlefile) {
                 Ok(t) => {t},
                 Err(e) => {
                     println!("{}", e);
@@ -77,17 +144,19 @@ fn main() {
             };
 
             let mut predict: predict::Predict = predict::Predict::new(tle, location);
-
+            let intype = args.inputtype.unwrap();
+            let samplerate = args.samplerate.unwrap();
 
             loop {
                 predict.update(None);
-                println!("az         : {:.2}°", predict.sat.az_deg);
-                println!("el         : {:.2}°", predict.sat.el_deg);
-                println!("range      : {:.0} km", predict.sat.range_km);
-                println!("range rate : {:.3} km/sec\n", predict.sat.range_rate_km_sec);
+                let doppler_hz = (predict.sat.range_rate_km_sec * 1000 as f64 / SPEED_OF_LIGHT_M_S as f64) * args.trackargs.frequency.unwrap() as f64 * (-1.0);
+
+                if !shift(intype, doppler_hz, samplerate) {
+                    break;
+                }
 
                 thread::sleep_ms(1000);
             }
-        },
+        }
     }
 }

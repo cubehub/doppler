@@ -6,4 +6,4 @@ authors = ["Andres Vahter <andres.vahter@gmail.com>"]
 
 [dependencies]
 clap = "*"
-libc = "0.1.5"
+libc = "*"
