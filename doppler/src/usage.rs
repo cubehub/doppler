@@ -29,41 +29,13 @@ use self::Mode::{ConstMode, TrackMode};
 use std::fmt;
 use std::process::exit;
 
-/*
-static USAGE: &'static str = "
-doppler <andres.vahter@gmail.com>
-
-Usage:
-    doppler (const (--samplerate <sps> | -s <sps>) --intype <type> --shift <Hz>)
-    doppler (track (--samplerate <sps> | -s <sps>) --intype <type> --tlefile <file> --tlename <name> --location <lat,lon,alt> --freq <Hz>) [--time <Y-m-dTH:M:S>] [--shift <Hz>]
-    doppler (-h | --help | --version)
-
-Options:
-    -s --samplerate <sps>       IQ data samplerate.
-    --intype <type>             IQ data type <i16, f32>.
-
-    -h --help                   Show this screen.
-    --version                   Show version.
-
-Const mode options:
-    --shift <Hz>                Constant frequency shift in Hz [default: 0].
-
-Track mode options:
-    --tlefile <file>            TLE database file eg. \"http://www.celestrak.com/NORAD/elements/cubesat.txt\".
-    --tlename <name>            TLE name eg. 'ESTCUBE 1'.
-    --location <lat,lon,alt>    Observer location on earth.
-    --time <Y-m-dTH:M:S>        Observation start time. It should be specified if input is IQ data recording. Real time is used otherwise.
-    --freq <Hz>                 Satellite transmitter frequency in Hz.
-    --shift <Hz>                Constant frequency shift in Hz [default: 0].
-";
-
-*/
-
 pub enum Mode {
     ConstMode,
     TrackMode,
 }
 
+#[derive(Copy)]
+#[derive(Clone)]
 pub enum InputType {
     F32,
     I16,
@@ -79,6 +51,8 @@ impl fmt::Display for InputType {
 }
 
 #[derive(Debug)]
+#[derive(Copy)]
+#[derive(Clone)]
 pub struct Location {
     pub lat: f64,
     pub lon: f64,
@@ -86,7 +60,7 @@ pub struct Location {
 }
 
 pub struct ConstModeArgs {
-    pub shift: Option<u32>,
+    pub shift: Option<i32>,
 }
 
 pub struct TrackModeArgs {
@@ -95,7 +69,7 @@ pub struct TrackModeArgs {
     pub location: Option<Location>,
     pub time: Option<f32>,
     pub frequency: Option<u32>,
-    pub offset: Option<u32>,
+    pub offset: Option<i32>,
 }
 
 pub struct CommandArgs {
@@ -262,7 +236,7 @@ pub fn args() -> CommandArgs {
                 _ => unreachable!()
             }
 
-            args.constargs.shift = Some(value_t_or_exit!(submatches.value_of("SHIFT"), u32));
+            args.constargs.shift = Some(value_t_or_exit!(submatches.value_of("SHIFT"), i32));
         },
 
 
@@ -278,7 +252,7 @@ pub fn args() -> CommandArgs {
             }
 
             if submatches.is_present("OFFSET") {
-                args.trackargs.offset = Some(value_t_or_exit!(submatches.value_of("OFFSET"), u32));
+                args.trackargs.offset = Some(value_t_or_exit!(submatches.value_of("OFFSET"), i32));
             }
 
             if submatches.is_present("TIME") {
