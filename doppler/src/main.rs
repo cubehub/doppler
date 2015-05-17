@@ -39,6 +39,8 @@ use std::io;
 use std::io::Read;
 use std::io::Write;
 
+extern crate time;
+
 const SPEED_OF_LIGHT_M_S: f64 = 299792458.;
 const BUFFER_SIZE: usize = 8192;
 
@@ -61,14 +63,14 @@ fn main() {
     let mut inbuf: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
     let mut outbuf: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
     let mut samplenr: u32 = 0;
-    let mut outlen = 0;
 
     let mut shift = |intype: doppler::usage::InputType, shift_hz: f64, samplerate: u32| {
+        let mut count_and_buflen: (usize, usize) = (0, 0);
         match stdin.read(&mut inbuf) {
             Ok(size) => {
                 match intype {
                     I16 => {
-                        outlen = dsp::shift_frequency_i16(&inbuf[0 .. size],
+                        count_and_buflen = dsp::shift_frequency_i16(&inbuf[0 .. size],
                                                     &mut samplenr,
                                                     shift_hz,
                                                     samplerate,
@@ -76,26 +78,29 @@ fn main() {
                     },
 
                     F32 => {
-                        outlen = dsp::shift_frequency_f32(&inbuf[0 .. size],
+                        count_and_buflen = dsp::shift_frequency_f32(&inbuf[0 .. size],
                                                     &mut samplenr,
-                                                    args.constargs.shift.unwrap() as f64,
-                                                    args.samplerate.unwrap(),
+                                                    shift_hz,
+                                                    samplerate,
                                                     &mut outbuf);
                     },
                 }
 
-                stdout.write(&outbuf[0 .. outlen]).unwrap();
+                let sample_count = count_and_buflen.0;
+                let buflen = count_and_buflen.1;
+
+                stdout.write(&outbuf[0 .. buflen]).unwrap();
 
                 if size < BUFFER_SIZE {
-                    return false;
+                    return (true, sample_count);
                 }
             }
             Err(e) => {
                 println_stderr!("err: {:?}", e);
-                return false;
+                return (true, 0);
             }
         }
-        return true;
+        return (false, count_and_buflen.0);
     };
 
     match *args.mode.as_ref().unwrap() {
@@ -111,7 +116,8 @@ fn main() {
             let samplerate = args.samplerate.unwrap();
 
             loop {
-                if !shift(intype, shift_hz, samplerate) {
+                let stop_and_count: (bool, usize) = shift(intype, shift_hz, samplerate);
+                if stop_and_count.0 {
                     break;
                 }
             }
@@ -126,7 +132,9 @@ fn main() {
             println_stderr!("\tTLE file        : {}", args.trackargs.tlefile.as_ref().unwrap());
             println_stderr!("\tTLE name        : {}", args.trackargs.tlename.as_ref().unwrap());
             println_stderr!("\tlocation        : {:?}", args.trackargs.location.as_ref().unwrap());
-            println_stderr!("\ttime            : {:.3}", args.trackargs.time.unwrap_or(0.0));
+            if args.trackargs.time.is_some() {
+                println_stderr!("\ttime            : {:.3}", args.trackargs.time.unwrap().to_utc().rfc3339());
+            }
             println_stderr!("\tfrequency       : {} Hz", args.trackargs.frequency.as_ref().unwrap());
             println_stderr!("\toffset          : {} Hz\n\n\n", args.trackargs.offset.unwrap_or(0));
 
@@ -138,24 +146,69 @@ fn main() {
             let tle = match tle::create_tle_from_file(&tlename, &tlefile) {
                 Ok(t) => {t},
                 Err(e) => {
-                    println!("{}", e);
+                    println_stderr!("{}", e);
                     exit(1);
                 }
             };
 
             let mut predict: predict::Predict = predict::Predict::new(tle, location);
             let intype = args.inputtype.unwrap();
+
             let samplerate = args.samplerate.unwrap();
+            let mut last_time: time::Tm = time::now_utc();
 
-            loop {
-                predict.update(None);
-                let doppler_hz = (predict.sat.range_rate_km_sec * 1000 as f64 / SPEED_OF_LIGHT_M_S as f64) * args.trackargs.frequency.unwrap() as f64 * (-1.0);
+            if args.trackargs.time.is_some() {
 
-                if !shift(intype, doppler_hz, samplerate) {
-                    break;
+                let mut sample_count = 0;
+                let start_time: time::Tm = args.trackargs.time.unwrap();
+                let mut dt = time::Duration::seconds(0);
+                last_time = start_time;
+
+                loop {
+                    predict.update(Some(start_time + dt));
+                    let doppler_hz = (predict.sat.range_rate_km_sec * 1000 as f64 / SPEED_OF_LIGHT_M_S as f64) * args.trackargs.frequency.unwrap() as f64 * (-1.0);
+
+                    // advance time based on how many samples are read in
+                    dt = time::Duration::seconds((sample_count as f32 / samplerate as f32) as i64);
+                    if start_time + dt - last_time >= time::Duration::seconds(5) {
+                        last_time = start_time + dt;
+                        println_stderr!("time                : {:}", (start_time + dt).to_utc().rfc3339());
+                        println_stderr!("az                  : {:.2}°", predict.sat.az_deg);
+                        println_stderr!("el                  : {:.2}°", predict.sat.el_deg);
+                        println_stderr!("range               : {:.0} km", predict.sat.range_km);
+                        println_stderr!("range rate          : {:.3} km/sec", predict.sat.range_rate_km_sec);
+                        println_stderr!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f64 / 1000_000_f64, doppler_hz);
+                    }
+
+                    let (stop, count): (bool, usize) = shift(intype, doppler_hz, samplerate);
+                    if stop {
+                        break;
+                    }
+                    //sample_count += count;
+                    sample_count += 8120;
                 }
+            }
+            else {
+                loop {
+                    predict.update(None);
+                    let doppler_hz = (predict.sat.range_rate_km_sec * 1000 as f64 / SPEED_OF_LIGHT_M_S as f64) * args.trackargs.frequency.unwrap() as f64 * (-1.0);
 
-                thread::sleep_ms(1000);
+                    if time::now_utc() - last_time >= time::Duration::seconds(1) {
+                        last_time = time::now_utc();
+                        println_stderr!("time                : {:}", time::now_utc().to_utc().rfc3339());
+                        println_stderr!("az                  : {:.2}°", predict.sat.az_deg);
+                        println_stderr!("el                  : {:.2}°", predict.sat.el_deg);
+                        println_stderr!("range               : {:.0} km", predict.sat.range_km);
+                        println_stderr!("range rate          : {:.3} km/sec", predict.sat.range_rate_km_sec);
+                        println_stderr!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f64 / 1000_000_f64, doppler_hz);
+                    }
+
+                    let (stop, count): (bool, usize) = shift(intype, doppler_hz, samplerate);
+                    if stop {
+                        break;
+                    }
+                    //thread::sleep_ms(1000);
+                }
             }
         }
     }
