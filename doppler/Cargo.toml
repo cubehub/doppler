@@ -7,3 +7,4 @@ authors = ["Andres Vahter <andres.vahter@gmail.com>"]
 [dependencies]
 clap = "*"
 libc = "*"
+time = "*"

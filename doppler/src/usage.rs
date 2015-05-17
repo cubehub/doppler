@@ -23,6 +23,7 @@
  */
 
 use clap::{App, Arg, SubCommand};
+use time;
 use self::InputType::{F32, I16};
 use self::Mode::{ConstMode, TrackMode};
 
@@ -67,7 +68,7 @@ pub struct TrackModeArgs {
     pub tlefile: Option<String>,
     pub tlename: Option<String>,
     pub location: Option<Location>,
-    pub time: Option<f32>,
+    pub time: Option<time::Tm>,
     pub frequency: Option<u32>,
     pub offset: Option<i32>,
 }
@@ -82,7 +83,7 @@ pub struct CommandArgs {
     pub trackargs: TrackModeArgs,
 }
 
-fn parse_location(location: &String) -> Result<Location, String> {
+fn parse_location(location: &str) -> Result<Location, String> {
     if location.contains("lat") && location.contains("lon") && location.contains("alt"){
         let split = location.split(",");
 
@@ -184,7 +185,7 @@ pub fn args() -> CommandArgs {
 
                     .arg(Arg::with_name("TIME")
                        .long("time")
-                       .help("Observation start time. If not specified current time is used")
+                       .help("Observation start time in UTC Y-m-dTH:M:S: eg. 2015-05-13T14:28:48. If not specified current time is used")
                        .required(false)
                        .takes_value(true))
 
@@ -256,7 +257,17 @@ pub fn args() -> CommandArgs {
             }
 
             if submatches.is_present("TIME") {
-                args.trackargs.time = Some(value_t_or_exit!(submatches.value_of("TIME"), f32));
+                let tm = time::strptime(submatches.value_of("TIME").unwrap(), "%Y-%m-%dT%H:%M:%S");
+                match tm {
+                    Ok(_) => {},
+                    Err(e) => {
+                        println!("{}.", e);
+                        println!("--time should be defined in Y-m-dTH:M:S format: eg. 2015-05-13T14:28:48");
+                        exit(1);
+                    },
+                };
+
+                args.trackargs.time = Some(tm.unwrap());
             }
 
             args.trackargs.tlefile = Some(submatches.value_of("TLEFILE").unwrap().to_string());
