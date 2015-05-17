@@ -94,7 +94,9 @@ extern {
 
 use std::f32::consts::PI;
 
-pub fn shift_frequency_i16(inbuf: &[u8], samplenr: &mut u32, shift_hz: f64, samplerate: u32, outbuf: &mut[u8]) -> usize {
+/// return:
+/// (sample count, number of bites in outbuf)
+pub fn shift_frequency_i16(inbuf: &[u8], samplenr: &mut u32, shift_hz: f64, samplerate: u32, outbuf: &mut[u8]) -> (usize, usize) {
     // inbuf consists of int16 IQ IQ pairs that are represented as bytes here
     let mut index: usize = 0;
 
@@ -119,11 +121,13 @@ pub fn shift_frequency_i16(inbuf: &[u8], samplenr: &mut u32, shift_hz: f64, samp
         index = index + 4;
     }
 
-    // outbuf len in bytes
-    index
+    // (sample count, number of bytes in outbuf)
+    (index/4, index)
 }
 
-pub fn shift_frequency_f32(inbuf: &[u8], samplenr: &mut u32, shift_hz: f64, samplerate: u32, outbuf: &mut[u8]) -> usize {
+/// return:
+/// (sample count, number of bites in outbuf)
+pub fn shift_frequency_f32(inbuf: &[u8], samplenr: &mut u32, shift_hz: f64, samplerate: u32, outbuf: &mut[u8]) -> (usize, usize) {
     // inbuf consists of float32 IQ IQ pairs that are represented as bytes here
     let mut index: usize = 0;
 
@@ -149,36 +153,38 @@ pub fn shift_frequency_f32(inbuf: &[u8], samplenr: &mut u32, shift_hz: f64, samp
         index = index + 4;
     }
 
-    // outbuf len in bytes
-    index
+    // (sample count, number of bytes in outbuf)
+    (index/4, index)
 }
 
 #[test]
 fn test_shift_frequency_i16() {
-    let mut inbuf: [u8; 8] = [190, 255, 79, 0, 130, 255, 109, 0];
+    let inbuf: [u8; 8] = [190, 255, 79, 0, 130, 255, 109, 0];
     let mut outbuf: [u8; 8] = [0; 8];
     let mut samplenr: u32 = 0;
 
-    let len = shift_frequency_i16(&inbuf[0 .. 8], &mut samplenr, 15000 as f64, 126000, &mut outbuf);
+    let (sample_count, buflen) = shift_frequency_i16(&inbuf[0 .. 8], &mut samplenr, 15000 as f64, 126000, &mut outbuf);
 
     let expectedout: [u8; 8] = [191, 255, 78, 0, 238, 255, 165, 0];
 
     assert_eq!(outbuf, expectedout);
     assert_eq!(samplenr, 2);
-    assert_eq!(len, 8);
+    assert_eq!(buflen, 8);
+    assert_eq!(sample_count, 2);
 }
 
 #[test]
 fn test_shift_frequency_f32() {
-    let mut inbuf: [u8; 16] = [0, 254, 3, 187, 0, 64, 29, 59, 0, 114, 124, 187, 0, 218, 91, 59];
+    let inbuf: [u8; 16] = [0, 254, 3, 187, 0, 64, 29, 59, 0, 114, 124, 187, 0, 218, 91, 59];
     let mut outbuf: [u8; 8] = [0; 8];
     let mut samplenr: u32 = 0;
 
-    let len = shift_frequency_f32(&inbuf[0 .. 16], &mut samplenr, 15000 as f64, 126000, &mut outbuf);
+    let (sample_count, buflen) = shift_frequency_f32(&inbuf[0 .. 16], &mut samplenr, 15000 as f64, 126000, &mut outbuf);
 
     let expectedout: [u8; 8] = [191, 255, 78, 0, 239, 255, 166, 0];
 
     assert_eq!(outbuf, expectedout);
     assert_eq!(samplenr, 2);
-    assert_eq!(len, 8);
+    assert_eq!(buflen, 8);
+    assert_eq!(sample_count, 2);
 }
