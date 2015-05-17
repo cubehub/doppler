@@ -23,6 +23,7 @@
  */
 
 extern crate libc;
+extern crate time;
 
 #[macro_use]
 extern crate clap;
@@ -32,21 +33,3 @@ pub mod tle;
 pub mod predict;
 pub mod usage;
 pub mod dsp;
-
-#[test]
-fn test_predict_update() {
-    let tle: tle::Tle = tle::Tle{
-        name: "ESTCUBE 1".to_string(),
-        line1: "1 39161U 13021C   15091.47675532  .00001890  00000-0  31643-3 0  9990".to_string(),
-        line2: "2 39161  98.0727 175.0786 0009451 192.0216 168.0788 14.70951130101965".to_string()
-    };
-
-    let location: predict::Location = predict::Location{lat_deg:58.64560, lon_deg: 23.15163, alt_m: 8};
-    let mut predict: predict::Predict = predict::Predict::new(tle, location);
-
-    predict.update(Some(0.0));
-    println!("az         : {:.*}°", 2, predict.sat.az_deg);
-    println!("el         : {:.*}°", 2, predict.sat.el_deg);
-    println!("range      : {:.*} km", 0, predict.sat.range_km);
-    println!("range rate : {:.*} km/sec\n", 3, predict.sat.range_rate_km_sec);
-}

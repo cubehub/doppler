@@ -28,6 +28,7 @@ use tle;
 
 use libc::{c_double};
 use std::default::Default;
+use time;
 
 pub struct Location {
     pub lat_deg: f64,
@@ -76,6 +77,54 @@ pub struct Predict {
 
     p_sat: ffipredict::sat_t,
     p_qth: ffipredict::qth_t,
+}
+
+fn fraction_of_day(h: i32, m: i32, s: i32) -> f64{
+    (h as f64 + (m as f64 + s as f64 / 60.0) / 60.0) / 24.0
+}
+
+/// Astronomical Formulae for Calculators, Jean Meeus, pages 23-25.
+/// Calculate Julian Date of 0.0 Jan year
+fn julian_date_of_year(yr: i32) -> f64 {
+    let mut year: u64;
+    let mut a: f64;
+    let mut b: f64;
+    let mut i: f64;
+
+    let mut jdoy: f64;
+
+    year = yr as u64 -1;
+    i = (year as f64 / 100.).trunc(); // this line messes it up
+    a = i;
+    i = (a / 4.).trunc();
+    b = (2. - a + i).trunc();
+    i = (365.25 * year as f64).trunc();
+    i += (30.6001_f64 * 14.0_f64).trunc();
+    jdoy = i + 1720994.5 + b;
+
+    jdoy
+}
+
+/// Calculates the day of the year for the specified date.
+fn day_of_the_year(yr: i32, mo: i32, dy: i32) -> i32 {
+    let days: [u8; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let mut day: i32 = 0;
+
+    for d in &days[0 .. mo as usize - 1] {
+        day += *d as i32;
+    }
+
+    day += dy as i32;
+    if (yr % 4 == 0) && ((yr % 100 != 0) || (yr % 400 == 0)) && (mo > 2) {
+        day += 1;
+    }
+
+    day
+}
+
+// Calculates Julian Day Number
+fn julian_day_nr(year: i32, month: i32, day: i32, h: i32, m: i32, s: i32) -> f64 {
+    julian_date_of_year(year) + day_of_the_year(year, month, day) as f64 + fraction_of_day(h, m, s)
 }
 
 impl Predict {
@@ -142,9 +191,9 @@ impl Predict {
         Predict{sat: sat, p_sat: sat_t, p_qth: qth}
     }
 
-    pub fn update(&mut self, timeoption: Option<c_double>) {
-        let juliantime  = match timeoption {
-            Some(t) => t,
+    pub fn update(&mut self, timeoption: Option<time::Tm>) {
+        let juliantime = match timeoption {
+            Some(t) => julian_day_nr(t.tm_year+1900, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec),
             None => unsafe {ffipredict::get_current_daynum()}
         };
 
@@ -162,4 +211,29 @@ impl Predict {
         self.sat.vel_km_s           = self.p_sat.velo;
         self.sat.orbit_nr           = self.p_sat.orbit;
     }
+}
+
+#[test]
+fn test_julian_day_nr() {
+    // http://en.wikipedia.org/wiki/Julian_day#Converting_Julian_or_Gregorian_calendar_date_to_Julian_Day_Number
+    assert_eq!(julian_day_nr(2000, 1, 1, 12, 00, 00), 2451545.0);
+    assert_eq!(julian_day_nr(1970, 1, 1, 00, 00, 00), 2440587.5);
+}
+
+#[test]
+fn test_predict_update() {
+    let tle: tle::Tle = tle::Tle{
+        name: "ESTCUBE 1".to_string(),
+        line1: "1 39161U 13021C   15091.47675532  .00001890  00000-0  31643-3 0  9990".to_string(),
+        line2: "2 39161  98.0727 175.0786 0009451 192.0216 168.0788 14.70951130101965".to_string()
+    };
+
+    let location: Location = Location{lat_deg:58.64560, lon_deg: 23.15163, alt_m: 8};
+    let mut predict: Predict = Predict::new(tle, location);
+
+    predict.update(Some(time::now_utc()));
+    println!("az         : {:.*}°", 2, predict.sat.az_deg);
+    println!("el         : {:.*}°", 2, predict.sat.el_deg);
+    println!("range      : {:.*} km", 0, predict.sat.range_km);
+    println!("range rate : {:.*} km/sec\n", 3, predict.sat.range_rate_km_sec);
 }
