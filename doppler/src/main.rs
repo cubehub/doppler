@@ -33,7 +33,6 @@ use doppler::usage::InputType::{I16, F32};
 use doppler::dsp;
 
 // import external modules
-use std::thread;
 use std::process::exit;
 use std::io;
 use std::io::Read;
@@ -157,59 +156,59 @@ fn main() {
             let samplerate = args.samplerate.unwrap();
             let mut last_time: time::Tm = time::now_utc();
 
-            if args.trackargs.time.is_some() {
+            match args.trackargs.time {
+                Some(start_time) => {
+                    let mut sample_count = 0;
+                    let mut dt = time::Duration::seconds(0);
+                    last_time = start_time;
 
-                let mut sample_count = 0;
-                let start_time: time::Tm = args.trackargs.time.unwrap();
-                let mut dt = time::Duration::seconds(0);
-                last_time = start_time;
+                    loop {
+                        predict.update(Some(start_time + dt));
+                        let doppler_hz = (predict.sat.range_rate_km_sec * 1000 as f64 / SPEED_OF_LIGHT_M_S as f64) * args.trackargs.frequency.unwrap() as f64 * (-1.0);
 
-                loop {
-                    predict.update(Some(start_time + dt));
-                    let doppler_hz = (predict.sat.range_rate_km_sec * 1000 as f64 / SPEED_OF_LIGHT_M_S as f64) * args.trackargs.frequency.unwrap() as f64 * (-1.0);
+                        // advance time based on how many samples are read in
+                        dt = time::Duration::seconds((sample_count as f32 / samplerate as f32) as i64);
+                        if start_time + dt - last_time >= time::Duration::seconds(5) {
+                            last_time = start_time + dt;
+                            println_stderr!("time                : {:}", (start_time + dt).to_utc().rfc3339());
+                            println_stderr!("az                  : {:.2}°", predict.sat.az_deg);
+                            println_stderr!("el                  : {:.2}°", predict.sat.el_deg);
+                            println_stderr!("range               : {:.0} km", predict.sat.range_km);
+                            println_stderr!("range rate          : {:.3} km/sec", predict.sat.range_rate_km_sec);
+                            println_stderr!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f64 / 1000_000_f64, doppler_hz);
+                        }
 
-                    // advance time based on how many samples are read in
-                    dt = time::Duration::seconds((sample_count as f32 / samplerate as f32) as i64);
-                    if start_time + dt - last_time >= time::Duration::seconds(5) {
-                        last_time = start_time + dt;
-                        println_stderr!("time                : {:}", (start_time + dt).to_utc().rfc3339());
-                        println_stderr!("az                  : {:.2}°", predict.sat.az_deg);
-                        println_stderr!("el                  : {:.2}°", predict.sat.el_deg);
-                        println_stderr!("range               : {:.0} km", predict.sat.range_km);
-                        println_stderr!("range rate          : {:.3} km/sec", predict.sat.range_rate_km_sec);
-                        println_stderr!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f64 / 1000_000_f64, doppler_hz);
+                        let (stop, count): (bool, usize) = shift(intype, doppler_hz, samplerate);
+                        if stop {
+                            break;
+                        }
+
+                        sample_count += count;
                     }
-
-                    let (stop, count): (bool, usize) = shift(intype, doppler_hz, samplerate);
-                    if stop {
-                        break;
-                    }
-                    //sample_count += count;
-                    sample_count += 8120;
                 }
-            }
-            else {
-                loop {
-                    predict.update(None);
-                    let doppler_hz = (predict.sat.range_rate_km_sec * 1000 as f64 / SPEED_OF_LIGHT_M_S as f64) * args.trackargs.frequency.unwrap() as f64 * (-1.0);
 
-                    if time::now_utc() - last_time >= time::Duration::seconds(1) {
-                        last_time = time::now_utc();
-                        println_stderr!("time                : {:}", time::now_utc().to_utc().rfc3339());
-                        println_stderr!("az                  : {:.2}°", predict.sat.az_deg);
-                        println_stderr!("el                  : {:.2}°", predict.sat.el_deg);
-                        println_stderr!("range               : {:.0} km", predict.sat.range_km);
-                        println_stderr!("range rate          : {:.3} km/sec", predict.sat.range_rate_km_sec);
-                        println_stderr!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f64 / 1000_000_f64, doppler_hz);
-                    }
+                None => {
+                    loop {
+                        predict.update(None);
+                        let doppler_hz = (predict.sat.range_rate_km_sec * 1000 as f64 / SPEED_OF_LIGHT_M_S as f64) * args.trackargs.frequency.unwrap() as f64 * (-1.0);
 
-                    let (stop, count): (bool, usize) = shift(intype, doppler_hz, samplerate);
-                    if stop {
-                        break;
+                        if time::now_utc() - last_time >= time::Duration::seconds(1) {
+                            last_time = time::now_utc();
+                            println_stderr!("time                : {:}", time::now_utc().to_utc().rfc3339());
+                            println_stderr!("az                  : {:.2}°", predict.sat.az_deg);
+                            println_stderr!("el                  : {:.2}°", predict.sat.el_deg);
+                            println_stderr!("range               : {:.0} km", predict.sat.range_km);
+                            println_stderr!("range rate          : {:.3} km/sec", predict.sat.range_rate_km_sec);
+                            println_stderr!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f64 / 1000_000_f64, doppler_hz);
+                        }
+
+                        let (stop, count): (bool, usize) = shift(intype, doppler_hz, samplerate);
+                        if stop {
+                            break;
+                        }
                     }
-                    //thread::sleep_ms(1000);
                 }
-            }
+            };
         }
     }
 }
