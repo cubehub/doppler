@@ -35,8 +35,7 @@ pub enum Mode {
     TrackMode,
 }
 
-#[derive(Copy)]
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum InputType {
     F32,
     I16,
@@ -52,8 +51,7 @@ impl fmt::Display for InputType {
 }
 
 #[derive(Debug)]
-#[derive(Copy)]
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Location {
     pub lat: f64,
     pub lon: f64,
