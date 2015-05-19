@@ -4,7 +4,7 @@ Firstly it was written in C ([last commit to C version](https://github.com/cubeh
 
 ## dependencies
 ### libgpredict
-Follow install instructors from here: https://github.com/cubehub/libgpredict
+Follow install instructions from here: https://github.com/cubehub/libgpredict
 
 ### rust
 http://www.rust-lang.org/install.html
