@@ -22,15 +22,14 @@
  * SOFTWARE.
  */
 
+extern crate libc;
+extern crate time;
 
-#ifndef __DSP_H__
-#define __DSP_H__
+#[macro_use]
+extern crate clap;
 
-#include <complex.h>
-#include <stdint.h>
-#include <math.h>
-
-int dsp_shift_frequency_i16(int16_t* iqbuffer, int len, int shift_freq_hz, int samplerate);
-int dsp_shift_frequency_f32(float* iqbuffer, int len, int shift_freq_hz, int samplerate);
-
-#endif
+pub mod ffipredict;
+pub mod tle;
+pub mod predict;
+pub mod usage;
+pub mod dsp;
