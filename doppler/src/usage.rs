@@ -114,6 +114,8 @@ fn parse_location(location: &str) -> Result<Location, String> {
 }
 
 pub fn args() -> CommandArgs {
+    let datatypes = ["i16", "f32"];
+
     let matches = App::new("doppler")
                 .author("Andres Vahter <andres.vahter@gmail.com>")
                 .version(env!("CARGO_PKG_VERSION"))
@@ -135,7 +137,7 @@ pub fn args() -> CommandArgs {
                        .short("i")
                        .help("IQ data type")
                        .required(true)
-                       .possible_values(vec!["i16", "f32"])
+                       .possible_values(&datatypes)
                        .takes_value(true))
 
                     .arg(Arg::with_name("SHIFT")
@@ -160,7 +162,7 @@ pub fn args() -> CommandArgs {
                        .short("i")
                        .help("IQ data type")
                        .required(true)
-                       .possible_values(vec!["i16", "f32"])
+                       .possible_values(&datatypes)
                        .takes_value(true))
 
                     .arg(Arg::with_name("TLEFILE")
@@ -287,4 +289,3 @@ pub fn args() -> CommandArgs {
 
     args
 }
-
