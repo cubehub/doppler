@@ -94,7 +94,7 @@ fn julian_date_of_year(yr: i32) -> f64 {
     let mut jdoy: f64;
 
     year = yr as u64 -1;
-    i = (year as f64 / 100.).trunc(); // this line messes it up
+    i = (year as f64 / 100.).trunc();
     a = i;
     i = (a / 4.).trunc();
     b = (2. - a + i).trunc();
