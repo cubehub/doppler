@@ -25,11 +25,8 @@
 extern crate libc;
 extern crate time;
 
-#[macro_use]
-extern crate clap;
+#[macro_use] extern crate clap;
+extern crate gpredict;
 
-pub mod ffipredict;
-pub mod tle;
-pub mod predict;
 pub mod usage;
 pub mod dsp;

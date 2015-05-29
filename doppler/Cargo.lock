@@ -3,6 +3,7 @@ name = "doppler"
 version = "1.0.0"
 dependencies = [
  "clap 0.9.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gpredict 0.1.0 (git+https://github.com/cubehub/rust-gpredict.git)",
  "libc 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -25,6 +26,15 @@ dependencies = [
 name = "gcc"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "gpredict"
+version = "0.1.0"
+source = "git+https://github.com/cubehub/rust-gpredict.git#7c1b9e3690b9cbc069ea28fab5a3b9a71324e284"
+dependencies = [
+ "libc 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "time 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "libc"

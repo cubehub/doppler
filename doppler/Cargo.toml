@@ -8,3 +8,6 @@ authors = ["Andres Vahter <andres.vahter@gmail.com>"]
 clap = "*"
 libc = "*"
 time = "*"
+
+[dependencies.gpredict]
+git = "https://github.com/cubehub/rust-gpredict.git"

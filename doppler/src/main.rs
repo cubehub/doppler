@@ -25,8 +25,6 @@
 
 // import local modules
 extern crate doppler;
-use doppler::predict;
-use doppler::tle;
 use doppler::usage;
 use doppler::usage::Mode::{ConstMode, TrackMode};
 use doppler::usage::InputType::{I16, F32};
@@ -39,6 +37,9 @@ use std::io::Read;
 use std::io::Write;
 
 extern crate time;
+extern crate gpredict;
+use gpredict::predict;
+use gpredict::tle;
 
 const SPEED_OF_LIGHT_M_S: f64 = 299792458.;
 const BUFFER_SIZE: usize = 8192;
