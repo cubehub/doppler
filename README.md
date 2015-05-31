@@ -14,7 +14,7 @@ http://www.rust-lang.org/install.html
 ## build
 
     git clone https://github.com/cubehub/doppler.git
-    cd doppler/doppler
+    cd doppler
     cargo build --release
 
 ## install
