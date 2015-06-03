@@ -65,42 +65,26 @@ fn main() {
     let mut samplenr: u32 = 0;
 
     let mut shift = |intype: doppler::usage::InputType, shift_hz: f64, samplerate: u32| {
-        let mut count_and_buflen: (usize, usize) = (0, 0);
         match stdin.read(&mut inbuf) {
             Ok(size) => {
-                match intype {
-                    I16 => {
-                        count_and_buflen = dsp::shift_frequency_i16(&inbuf[0 .. size],
-                                                    &mut samplenr,
-                                                    shift_hz,
-                                                    samplerate,
-                                                    &mut outbuf);
-                    },
-
-                    F32 => {
-                        count_and_buflen = dsp::shift_frequency_f32(&inbuf[0 .. size],
-                                                    &mut samplenr,
-                                                    shift_hz,
-                                                    samplerate,
-                                                    &mut outbuf);
-                    },
-                }
-
-                let sample_count = count_and_buflen.0;
-                let buflen = count_and_buflen.1;
-
+                let freq_shift_fn: fn(&[u8], &mut u32, f64, u32, &mut[u8]) -> (usize, usize) =
+                    match intype {
+                        I16 => { dsp::shift_frequency_i16},
+                        F32 => { dsp::shift_frequency_f32},
+                };
+                let (sample_count,buflen)  = freq_shift_fn(&inbuf[0 .. size],
+                                                           &mut samplenr,
+                                                           shift_hz,
+                                                           samplerate,
+                                                           &mut outbuf);
                 stdout.write(&outbuf[0 .. buflen]).unwrap();
-
-                if size < BUFFER_SIZE {
-                    return (true, sample_count);
-                }
+                (size<BUFFER_SIZE, sample_count)
             }
             Err(e) => {
                 println_stderr!("err: {:?}", e);
-                return (true, 0);
+                (true, 0)
             }
         }
-        return (false, count_and_buflen.0);
     };
 
     match *args.mode.as_ref().unwrap() {
