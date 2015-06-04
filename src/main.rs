@@ -72,13 +72,16 @@ fn main() {
                         I16 => { dsp::shift_frequency_i16},
                         F32 => { dsp::shift_frequency_f32},
                 };
-                let (sample_count,buflen)  = freq_shift_fn(&inbuf[0 .. size],
+                let (sample_count, buflen)  = freq_shift_fn(&inbuf[0 .. size],
                                                            &mut samplenr,
                                                            shift_hz,
                                                            samplerate,
                                                            &mut outbuf);
-                stdout.write(&outbuf[0 .. buflen]).unwrap();
-                (size<BUFFER_SIZE, sample_count)
+
+                stdout.write(&outbuf[0 .. buflen]).map_err(|e|{println_stderr!("stdout.write error: {:?}", e); exit(1);});
+                stdout.flush().map_err(|e|{println_stderr!("stdout.write error: {:?}", e); exit(1);});
+
+                (size < BUFFER_SIZE, sample_count)
             }
             Err(e) => {
                 println_stderr!("err: {:?}", e);
