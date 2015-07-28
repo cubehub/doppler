@@ -22,75 +22,13 @@
  * SOFTWARE.
  */
 
-
-use std::ops::{Add, Sub, Mul};
+use num::complex::Complex;
 use std::mem;
-
-// rust currently does not support operations with complex numbers, therefore C functions are used
-// C complex wrapper is taken from here, because this lib does not work with beta
-// https://github.com/japaric/complex.rs/blob/master/src/lib.rs
-
-/// A complex number in Cartesian form.
-#[repr(C)]
-#[derive(Clone, Copy, PartialEq)]
-pub struct Complex<T> {
-    /// The real part
-    pub re: T,
-    /// The imaginary part
-    pub im: T,
-}
-
-/// Single precision complex number
-#[allow(non_camel_case_types)]
-pub type c64 = Complex<f32>;
-
-impl<T> Complex<T> {
-    /// Create a new complex number
-    pub fn new(re: T, im: T) -> Complex<T> {
-        Complex {
-            im: im,
-            re: re,
-        }
-    }
-}
-
-impl<T> Mul<T> for Complex<T> where T: Clone + Mul<Output=T> {
-    type Output = Complex<T>;
-
-    fn mul(self, rhs: T) -> Complex<T> {
-        Complex {
-            re: self.re * rhs.clone(),
-            im: self.im * rhs,
-        }
-    }
-}
-
-impl<T> Mul for Complex<T> where
-    T: Add<Output=T> + Clone + Mul<Output=T> + Sub<Output=T>,
-{
-    type Output = Complex<T>;
-
-    fn mul(self, rhs: Complex<T>) -> Complex<T> {
-        Complex {
-            re: self.re.clone() * rhs.re.clone() - self.im.clone() * rhs.im.clone(),
-            im: self.re * rhs.im + self.im * rhs.re,
-        }
-    }
-}
-
-impl Mul<Complex<f32>> for f32 {
-    type Output = Complex<f32>;
-
-    fn mul(self, rhs: Complex<f32>) -> Complex<f32> {
-        rhs * self
-    }
-}
 
 #[link(name="m")]
 extern {
-    pub fn cexpf(z: c64) -> c64;
+    pub fn cexpf(z: Complex<f32>) -> Complex<f32>;
 }
-
 
 use std::f32::consts::PI;
 
@@ -104,8 +42,8 @@ pub fn shift_frequency_i16(inbuf: &[u8], samplenr: &mut u32, shift_hz: f64, samp
         let i: f32 = ((b[1] as i16) << 8 | b[0] as i16) as f32 / 32768.;
         let q: f32 = ((b[3] as i16) << 8 | b[2] as i16) as f32 / 32768.;
 
-        let mut c_sample: c64 = Complex::new(i, q);
-        let c_corrector: c64 = unsafe {cexpf(Complex::new(0., -2. * PI * (shift_hz as f32 / samplerate as f32) * *samplenr as f32))};
+        let mut c_sample: Complex<f32> = Complex::new(i, q);
+        let c_corrector: Complex<f32> = unsafe {cexpf(Complex::new(0., -2. * PI * (shift_hz as f32 / samplerate as f32) * *samplenr as f32))};
         c_sample = c_sample * c_corrector;
 
         let i = (c_sample.re * 32767.0) as i16; // I
@@ -135,8 +73,8 @@ pub fn shift_frequency_f32(inbuf: &[u8], samplenr: &mut u32, shift_hz: f64, samp
         let i: f32 = unsafe {mem::transmute::<u32, f32>(((b[3] as u32) << 24) | ((b[2] as u32) << 16) | ((b[1] as u32) << 8) | b[0] as u32)};
         let q: f32 = unsafe {mem::transmute::<u32, f32>(((b[7] as u32) << 24) | ((b[6] as u32) << 16) | ((b[5] as u32) << 8) | b[4] as u32)};
 
-        let mut c_sample: c64 = Complex::new(i, q);
-        let c_corrector: c64 = unsafe {cexpf(Complex::new(0., -2. * PI * (shift_hz as f32 / samplerate as f32) * *samplenr as f32))};
+        let mut c_sample = Complex::<f32>::new(i, q);
+        let c_corrector = unsafe {cexpf(Complex::<f32>::new(0., -2. * PI * (shift_hz as f32 / samplerate as f32) * *samplenr as f32))};
         c_sample = c_sample * c_corrector;
 
         let i = (c_sample.re * 32767.0) as i16; // I

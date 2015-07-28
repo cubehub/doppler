@@ -24,6 +24,7 @@
 
 extern crate libc;
 extern crate time;
+extern crate num;
 
 #[macro_use] extern crate clap;
 extern crate gpredict;
