@@ -33,8 +33,9 @@ use doppler::dsp;
 // import external modules
 use std::process::exit;
 use std::io;
-use std::io::Read;
-use std::io::Write;
+use std::io::prelude::*;
+use std::io::BufReader;
+use std::io::BufWriter;
 
 extern crate time;
 extern crate gpredict;
@@ -58,36 +59,28 @@ fn main() {
 
     println_stderr!("doppler {} andres.vahter@gmail.com\n\n", env!("CARGO_PKG_VERSION"));
 
-    let mut stdin = io::stdin();
-    let mut stdout = io::stdout();
-    let mut inbuf: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+    let mut stdin = BufReader::with_capacity(BUFFER_SIZE*2, io::stdin());
+    let mut stdout = BufWriter::new(io::stdout());
     let mut outbuf: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
     let mut samplenr: u32 = 0;
 
     let mut shift = |intype: doppler::usage::InputType, shift_hz: f64, samplerate: u32| {
-        match stdin.read(&mut inbuf) {
-            Ok(size) => {
-                let freq_shift_fn: fn(&[u8], &mut u32, f64, u32, &mut[u8]) -> (usize, usize) =
-                    match intype {
-                        I16 => { dsp::shift_frequency_i16},
-                        F32 => { dsp::shift_frequency_f32},
-                };
-                let (sample_count, buflen)  = freq_shift_fn(&inbuf[0 .. size],
-                                                           &mut samplenr,
-                                                           shift_hz,
-                                                           samplerate,
-                                                           &mut outbuf);
+        let invec = stdin.by_ref().bytes().take(BUFFER_SIZE).collect::<Result<Vec<u8>,_>>().ok().expect("doppler collect error");
 
-                stdout.write(&outbuf[0 .. buflen]).map_err(|e|{println_stderr!("stdout.write error: {:?}", e); exit(1);});
-                stdout.flush().map_err(|e|{println_stderr!("stdout.write error: {:?}", e); exit(1);});
+        let freq_shift_fn: fn(&[u8], &mut u32, f64, u32, &mut[u8]) -> (usize, usize) =
+            match intype {
+                I16 => { dsp::shift_frequency_i16},
+                F32 => { dsp::shift_frequency_f32},
+        };
+        let (sample_count, buflen)  = freq_shift_fn(&invec[..],
+                                                   &mut samplenr,
+                                                   shift_hz,
+                                                   samplerate,
+                                                   &mut outbuf);
 
-                (size < BUFFER_SIZE, sample_count)
-            }
-            Err(e) => {
-                println_stderr!("err: {:?}", e);
-                (true, 0)
-            }
-        }
+        stdout.write(&outbuf[0 .. buflen]).map_err(|e|{println_stderr!("doppler stdout.write error: {:?}", e)}).unwrap();
+        stdout.flush().map_err(|e|{println_stderr!("doppler stdout.flush error: {:?}", e)}).unwrap();
+        (false, sample_count)
     };
 
     match *args.mode.as_ref().unwrap() {
@@ -190,7 +183,7 @@ fn main() {
                             println_stderr!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f64 / 1000_000_f64, doppler_hz);
                         }
 
-                        let (stop, count): (bool, usize) = shift(intype, doppler_hz, samplerate);
+                        let (stop, _): (bool, usize) = shift(intype, doppler_hz, samplerate);
                         if stop {
                             break;
                         }
