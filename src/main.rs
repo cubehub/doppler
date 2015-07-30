@@ -62,16 +62,18 @@ fn main() {
     let mut stdin = BufReader::with_capacity(BUFFER_SIZE*2, io::stdin());
     let mut stdout = BufWriter::new(io::stdout());
     let mut outbuf: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+    let mut samplenr: u32 = 0;
 
     let mut shift = |intype: doppler::usage::InputType, shift_hz: f64, samplerate: u32| {
         let invec = stdin.by_ref().bytes().take(BUFFER_SIZE).collect::<Result<Vec<u8>,_>>().ok().expect("doppler collect error");
 
-        let freq_shift_fn: fn(&[u8], f64, u32, &mut[u8]) -> (usize, usize) =
+        let freq_shift_fn: fn(&[u8], &mut u32, f64, u32, &mut[u8]) -> (usize, usize) =
             match intype {
                 I16 => { dsp::shift_frequency_i16},
                 F32 => { dsp::shift_frequency_f32},
         };
         let (sample_count, buflen)  = freq_shift_fn(&invec[..],
+                                                   &mut samplenr,
                                                    shift_hz,
                                                    samplerate,
                                                    &mut outbuf);
