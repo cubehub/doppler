@@ -78,7 +78,7 @@ fn main() {
 
         stdout.write(&outbuf[0 .. buflen]).map_err(|e|{println_stderr!("doppler stdout.write error: {:?}", e)}).unwrap();
         stdout.flush().map_err(|e|{println_stderr!("doppler stdout.flush error: {:?}", e)}).unwrap();
-        (false, sample_count)
+        (invec.len() != BUFFER_SIZE, sample_count)
     };
 
     match *args.mode.as_ref().unwrap() {
