@@ -24,7 +24,7 @@
 
 use clap::{App, Arg, SubCommand};
 use time;
-use self::InputType::{F32, I16};
+use self::DataType::{F32, I16};
 use self::Mode::{ConstMode, TrackMode};
 
 use std::fmt;
@@ -36,16 +36,16 @@ pub enum Mode {
 }
 
 #[derive(Clone, Copy)]
-pub enum InputType {
+pub enum DataType {
     F32,
     I16,
 }
 
-impl fmt::Display for InputType {
+impl fmt::Display for DataType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            InputType::F32 => {write!(f, "f32")},
-            InputType::I16 => {write!(f, "i16")},
+            DataType::F32 => {write!(f, "f32")},
+            DataType::I16 => {write!(f, "i16")},
         }
     }
 }
@@ -75,7 +75,8 @@ pub struct CommandArgs {
     pub mode: Option<Mode>,
 
     pub samplerate: Option<u32>,
-    pub inputtype: Option<InputType>,
+    pub inputtype: Option<DataType>,
+    pub outputtype: Option<DataType>,
 
     pub constargs: ConstModeArgs,
     pub trackargs: TrackModeArgs,
@@ -135,8 +136,16 @@ pub fn args() -> CommandArgs {
                     .arg(Arg::with_name("INTYPE")
                        .long("intype")
                        .short("i")
-                       .help("IQ data type")
+                       .help("IQ data input type")
                        .required(true)
+                       .possible_values(&datatypes)
+                       .takes_value(true))
+
+                   .arg(Arg::with_name("OUTTYPE")
+                       .long("outtype")
+                       .short("o")
+                       .help("IQ data output type")
+                       .required(false)
                        .possible_values(&datatypes)
                        .takes_value(true))
 
@@ -162,6 +171,14 @@ pub fn args() -> CommandArgs {
                        .short("i")
                        .help("IQ data type")
                        .required(true)
+                       .possible_values(&datatypes)
+                       .takes_value(true))
+
+                   .arg(Arg::with_name("OUTTYPE")
+                       .long("outtype")
+                       .short("o")
+                       .help("IQ data output type")
+                       .required(false)
                        .possible_values(&datatypes)
                        .takes_value(true))
 
@@ -209,6 +226,7 @@ pub fn args() -> CommandArgs {
 
                     samplerate : None,
                     inputtype : None,
+                    outputtype: None,
 
                     constargs : ConstModeArgs {
                         shift: None,
@@ -237,6 +255,17 @@ pub fn args() -> CommandArgs {
                 _ => unreachable!()
             }
 
+            if submatches.is_present("OUTTYPE") {
+                match submatches.value_of("OUTTYPE").unwrap() {
+                    "f32" => {args.outputtype = Some(F32);},
+                    "i16" => {args.outputtype = Some(I16);},
+                    _ => unreachable!()
+                }
+            }
+            else {
+                args.outputtype = args.inputtype;
+            }
+
             args.constargs.shift = Some(value_t_or_exit!(submatches.value_of("SHIFT"), i32));
         },
 
@@ -250,6 +279,17 @@ pub fn args() -> CommandArgs {
                 "f32" => {args.inputtype = Some(F32);},
                 "i16" => {args.inputtype = Some(I16);},
                 _ => unreachable!()
+            }
+
+            if submatches.is_present("OUTTYPE") {
+                match submatches.value_of("OUTTYPE").unwrap() {
+                    "f32" => {args.outputtype = Some(F32);},
+                    "i16" => {args.outputtype = Some(I16);},
+                    _ => unreachable!()
+                }
+            }
+            else {
+                args.outputtype = args.inputtype;
             }
 
             if submatches.is_present("OFFSET") {

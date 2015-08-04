@@ -27,7 +27,7 @@
 extern crate doppler;
 use doppler::usage;
 use doppler::usage::Mode::{ConstMode, TrackMode};
-use doppler::usage::InputType::{I16, F32};
+use doppler::usage::DataType::{I16, F32};
 use doppler::dsp;
 
 // import external modules
@@ -36,6 +36,7 @@ use std::io;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::io::BufWriter;
+use std::slice;
 
 extern crate time;
 extern crate gpredict;
@@ -61,26 +62,46 @@ fn main() {
 
     let mut stdin = BufReader::with_capacity(BUFFER_SIZE*2, io::stdin());
     let mut stdout = BufWriter::new(io::stdout());
-    let mut outbuf: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
-    let mut samplenr: u32 = 0;
 
-    let mut shift = |intype: doppler::usage::InputType, shift_hz: f64, samplerate: u32| {
+    let mut samplenr: u64 = 0;
+
+    let mut shift = |intype: doppler::usage::DataType, shift_hz: f64, samplerate: u32| {
         let invec = stdin.by_ref().bytes().take(BUFFER_SIZE).collect::<Result<Vec<u8>,_>>().ok().expect("doppler collect error");
 
-        let freq_shift_fn: fn(&[u8], &mut u32, f64, u32, &mut[u8]) -> (usize, usize) =
-            match intype {
-                I16 => { dsp::shift_frequency_i16},
-                F32 => { dsp::shift_frequency_f32},
+        let input = match intype {
+                I16 => dsp::convert_iqi16_to_complex(&invec),
+                F32 => dsp::convert_iqf32_to_complex(&invec),
         };
-        let (sample_count, buflen)  = freq_shift_fn(&invec[..],
-                                                   &mut samplenr,
-                                                   shift_hz,
-                                                   samplerate,
-                                                   &mut outbuf);
 
-        stdout.write(&outbuf[0 .. buflen]).map_err(|e|{println_stderr!("doppler stdout.write error: {:?}", e)}).unwrap();
+        let output = dsp::shift_frequency(&input, &mut samplenr, shift_hz, samplerate);
+
+        match *args.outputtype.as_ref().unwrap() {
+            doppler::usage::DataType::I16 => {
+                let mut outputi16 = Vec::<u8>::with_capacity(output.len() * 4);
+
+                for sample in &output[..] {
+                    let i = (sample.re * 32767.0) as i16;
+                    let q = (sample.im * 32767.0) as i16;
+
+                    outputi16.push((i & 0xFF) as u8);
+                    outputi16.push(((i >> 8) & 0xFF) as u8);
+                    outputi16.push((q & 0xFF) as u8);
+                    outputi16.push(((q >> 8) & 0xFF) as u8);
+                }
+
+                stdout.write(&outputi16[..]).map_err(|e|{println_stderr!("doppler stdout.write error: {:?}", e)}).unwrap();
+            },
+
+            doppler::usage::DataType::F32 => {
+                // * 8 because Complex<f32> is 8 bytes long
+                let slice = unsafe {slice::from_raw_parts(output.as_ptr() as *const _, (output.len() * 8))};
+                stdout.write(&slice).map_err(|e|{println_stderr!("doppler stdout.write error: {:?}", e)}).unwrap();
+            },
+        };
+
+
         stdout.flush().map_err(|e|{println_stderr!("doppler stdout.flush error: {:?}", e)}).unwrap();
-        (invec.len() != BUFFER_SIZE, sample_count)
+        (invec.len() != BUFFER_SIZE, output.len())
     };
 
     match *args.mode.as_ref().unwrap() {
@@ -88,7 +109,7 @@ fn main() {
             println_stderr!("constant shift mode");
             println_stderr!("\tIQ samplerate   : {}", args.samplerate.as_ref().unwrap());
             println_stderr!("\tIQ input type   : {}", args.inputtype.as_ref().unwrap());
-            println_stderr!("\tIQ output type  : i16\n");
+            println_stderr!("\tIQ output type  : {}\n", args.outputtype.as_ref().unwrap());
             println_stderr!("\tfrequency shift : {} Hz", args.constargs.shift.as_ref().unwrap());
 
             let intype = args.inputtype.unwrap();
@@ -108,7 +129,7 @@ fn main() {
             println_stderr!("tracking mode");
             println_stderr!("\tIQ samplerate   : {}", args.samplerate.as_ref().unwrap());
             println_stderr!("\tIQ input type   : {}", args.inputtype.as_ref().unwrap());
-            println_stderr!("\tIQ output type  : i16\n");
+            println_stderr!("\tIQ output type  : {}\n", args.outputtype.as_ref().unwrap());
             println_stderr!("\tTLE file        : {}", args.trackargs.tlefile.as_ref().unwrap());
             println_stderr!("\tTLE name        : {}", args.trackargs.tlename.as_ref().unwrap());
             println_stderr!("\tlocation        : {:?}", args.trackargs.location.as_ref().unwrap());
