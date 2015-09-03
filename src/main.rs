@@ -152,7 +152,7 @@ fn main() {
                 }
             };
 
-            let mut predict: predict::Predict = predict::Predict::new(tle, location);
+            let mut predict: predict::Predict = predict::Predict::new(&tle, &location);
             let intype = args.inputtype.unwrap();
 
             let samplerate = args.samplerate.unwrap();
