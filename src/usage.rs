@@ -196,7 +196,7 @@ pub fn args() -> CommandArgs {
 
                     .arg(Arg::with_name("LOCATION")
                        .long("location")
-                       .help("Observer location: eg. lat=58.64560,lon=23.15163,alt=8")
+                       .help("Observer location (lat=<deg>,lon=<deg>,alt=<m>): eg. lat=58.64560,lon=23.15163,alt=8")
                        .required(true)
                        .takes_value(true))
 
