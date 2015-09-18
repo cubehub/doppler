@@ -26,6 +26,13 @@ use num::complex::Complex;
 use std::mem;
 
 #[link(name="m")]
+#[cfg(target_pointer_width="32")]
+extern {
+    pub fn cexpf(z: u64) -> u64;
+}
+
+#[link(name="m")]
+#[cfg(target_pointer_width="64")]
 extern {
     pub fn cexpf(z: Complex<f32>) -> Complex<f32>;
 }
@@ -68,7 +75,9 @@ pub fn shift_frequency(inbuf: &[Complex<f32>], samplenum: &mut u64, shift_hz: f6
     let mut output = Vec::<Complex<f32>>::with_capacity(inbuf.len());
 
     for sample in inbuf {
-        let corrector = unsafe {cexpf(Complex::<f32>::new(0., -2. * PI * (shift_hz as f64 / samplerate as f64 * *samplenum as f64) as f32))};
+        let corrector: Complex<f32> = unsafe { mem::transmute(cexpf(mem::transmute(
+		Complex::<f32>::new(0., -2. * PI * (shift_hz as f64 / samplerate as f64 * *samplenum as f64) as f32))
+	))};
         output.push(sample * corrector);
         *samplenum += 1;
     }
