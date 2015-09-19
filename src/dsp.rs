@@ -25,6 +25,10 @@
 use num::complex::Complex;
 use std::mem;
 
+// Rust does not support C complex numbers in the same way on 32 and 64 bit platforms:
+// https://github.com/rust-lang/rfcs/issues/793
+//
+// Therefore this workaround is needed:
 #[link(name="m")]
 #[cfg(target_pointer_width="32")]
 extern {
@@ -76,8 +80,9 @@ pub fn shift_frequency(inbuf: &[Complex<f32>], samplenum: &mut u64, shift_hz: f6
 
     for sample in inbuf {
         let corrector: Complex<f32> = unsafe { mem::transmute(cexpf(mem::transmute(
-		Complex::<f32>::new(0., -2. * PI * (shift_hz as f64 / samplerate as f64 * *samplenum as f64) as f32))
-	))};
+            Complex::<f32>::new(0., -2. * PI * (shift_hz as f64 / samplerate as f64 * *samplenum as f64) as f32))
+        ))};
+
         output.push(sample * corrector);
         *samplenum += 1;
     }
