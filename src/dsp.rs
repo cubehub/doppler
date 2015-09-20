@@ -43,6 +43,26 @@ extern {
 
 use std::f32::consts::PI;
 
+#[cfg(test)]
+use std;
+
+#[test]
+fn test_cexpf() {
+    let a: Complex<f32> = unsafe {mem::transmute(cexpf(mem::transmute(Complex::<f32>::new(0.0, 0.0))))};
+    assert_eq!(a, Complex::<f32>::new(1.0, 0.0));
+
+    let a: Complex<f32> = unsafe {mem::transmute(cexpf(mem::transmute(Complex::<f32>::new(1.0, 1.0))))};
+    assert_eq!(a, Complex::<f32>::new(1.468694, 2.2873552));
+
+    let a: Complex<f32> = unsafe {mem::transmute(cexpf(mem::transmute(Complex::<f32>::new(70.0, 70.0))))};
+    assert_eq!(a, Complex::<f32>::new(1593075600000000000000000000000f32, 1946674600000000000000000000000f32));
+
+    let a: Complex<f32> = unsafe {mem::transmute(cexpf(mem::transmute(Complex::<f32>::new(1_000_000.0, 1_000_000.0))))};
+    assert_eq!(a, Complex::<f32>::new(std::f32::INFINITY, -std::f32::INFINITY));
+
+    //println!("a={:?}", a);
+}
+
 pub fn convert_iqi16_to_complex(inbuf: &[u8]) -> Vec<Complex<f32>> {
     // inbuf consists of i16 IQ pairs that are represented as bytes here
     assert!(inbuf.len() % 4 == 0);
