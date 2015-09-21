@@ -22,23 +22,19 @@
  * SOFTWARE.
  */
 
+use liquid_dsp::LiquidComplex32;
+
 use num::complex::Complex;
 use std::mem;
 
 // Rust does not support C complex numbers in the same way on 32 and 64 bit platforms:
 // https://github.com/rust-lang/rfcs/issues/793
+// Therefore this workaround is needed.
 //
-// Therefore this workaround is needed:
-#[link(name="m")]
-#[cfg(target_pointer_width="32")]
+// LiquidComplex32 is used here because num::complex::Complex does not have #[repr(C)]
+// ccexpf is implemented in complex.c
 extern {
-    pub fn cexpf(z: u64) -> u64;
-}
-
-#[link(name="m")]
-#[cfg(target_pointer_width="64")]
-extern {
-    pub fn cexpf(z: Complex<f32>) -> Complex<f32>;
+    pub fn ccexpf(z: *const LiquidComplex32) -> LiquidComplex32;
 }
 
 use std::f32::consts::PI;
@@ -46,19 +42,34 @@ use std::f32::consts::PI;
 #[cfg(test)]
 use std;
 
+#[cfg(test)]
+fn assert_eq_delta(a: f32, b: f32, delta: f32) {
+    let relative_error = ((a - b) / b).abs();
+    if relative_error >= delta {
+        panic!("`(left == right)` (left: `{}`, right: `{}`)'", a, b);
+    }
+}
+
 #[test]
 fn test_cexpf() {
-    let a: Complex<f32> = unsafe {mem::transmute(cexpf(mem::transmute(Complex::<f32>::new(0.0, 0.0))))};
-    assert_eq!(a, Complex::<f32>::new(1.0, 0.0));
+    // cargo test -- --nocapture
+    // to see prints
 
-    let a: Complex<f32> = unsafe {mem::transmute(cexpf(mem::transmute(Complex::<f32>::new(1.0, 1.0))))};
-    assert_eq!(a, Complex::<f32>::new(1.468694, 2.2873552));
+    let a: Complex<f32> = unsafe {mem::transmute(ccexpf(mem::transmute(&LiquidComplex32{real:0.0, imag:0.0})))};
+    assert_eq_delta(a.re, 1.0, 0.000001);
+    assert_eq_delta(a.im, 0.0, 0.000001);
 
-    let a: Complex<f32> = unsafe {mem::transmute(cexpf(mem::transmute(Complex::<f32>::new(70.0, 70.0))))};
-    assert_eq!(a, Complex::<f32>::new(1593075600000000000000000000000f32, 1946674600000000000000000000000f32));
+    let a: Complex<f32> = unsafe {mem::transmute(ccexpf(mem::transmute(&LiquidComplex32{real:1.0, imag:1.0})))};
+    assert_eq_delta(a.re, 1.468694, 0.000001);
+    assert_eq_delta(a.im, 2.2873552, 0.000001);
 
-    let a: Complex<f32> = unsafe {mem::transmute(cexpf(mem::transmute(Complex::<f32>::new(1_000_000.0, 1_000_000.0))))};
-    assert_eq!(a, Complex::<f32>::new(std::f32::INFINITY, -std::f32::INFINITY));
+    let a: Complex<f32> = unsafe {mem::transmute(ccexpf(mem::transmute(&LiquidComplex32{real:70.0, imag:70.0})))};
+    assert_eq_delta(a.re, 1593075600000000000000000000000f32, 0.000001);
+    assert_eq_delta(a.im, 1946674600000000000000000000000f32, 0.000001);
+
+    let a: Complex<f32> = unsafe {mem::transmute(ccexpf(mem::transmute(&LiquidComplex32{real:1_000_000.0, imag:1_000_000.0})))};
+    assert_eq!(a.re, std::f32::INFINITY);
+    assert_eq!(a.im, -std::f32::INFINITY);
 
     //println!("a={:?}", a);
 }
@@ -99,9 +110,9 @@ pub fn shift_frequency(inbuf: &[Complex<f32>], samplenum: &mut u64, shift_hz: f6
     let mut output = Vec::<Complex<f32>>::with_capacity(inbuf.len());
 
     for sample in inbuf {
-        let corrector: Complex<f32> = unsafe { mem::transmute(cexpf(mem::transmute(
-            Complex::<f32>::new(0., -2. * PI * (shift_hz as f64 / samplerate as f64 * *samplenum as f64) as f32))
-        ))};
+        let corrector: Complex<f32> = unsafe { mem::transmute(ccexpf(
+            & LiquidComplex32{real:0., imag: -2. * PI * (shift_hz as f64 / samplerate as f64 * *samplenum as f64) as f32})
+        )};
 
         output.push(sample * corrector);
         *samplenum += 1;

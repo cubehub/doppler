@@ -22,13 +22,8 @@
  * SOFTWARE.
  */
 
-extern crate libc;
-extern crate time;
-extern crate num;
+ extern crate gcc;
 
-#[macro_use] extern crate clap;
-extern crate gpredict;
-extern crate liquid_dsp;
-
-pub mod usage;
-pub mod dsp;
+ fn main() {
+     gcc::compile_library("libcomplex.a", &["src/complex.c"]);
+ }
