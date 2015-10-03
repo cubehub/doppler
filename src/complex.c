@@ -22,13 +22,18 @@
  * SOFTWARE.
  */
 
-extern crate libc;
-extern crate time;
-extern crate num;
+#include <complex.h>
+#include <stdio.h>
 
-#[macro_use] extern crate clap;
-extern crate gpredict;
-extern crate liquid_dsp;
+typedef struct {
+    float real;
+    float imag;
+} RustComplex;
 
-pub mod usage;
-pub mod dsp;
+void ccexpf(RustComplex* a) {
+    float complex input = a->real + a->imag * I;
+    float complex cout = cexpf(input);
+    RustComplex rout = {.real=creal(cout), .imag=cimag(cout)};
+    a->real = creal(cout);
+    a->imag = cimag(cout);
+}
