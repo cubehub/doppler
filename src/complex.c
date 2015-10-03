@@ -30,7 +30,7 @@ typedef struct {
     float imag;
 } RustComplex;
 
-RustComplex ccexpf(const RustComplex* a) {
+void ccexpf(RustComplex* a) {
     printf("cplx sizeof=%i and addr %p\n", sizeof(RustComplex), a);
     printf("cplx in1: %f %fi\n", a->real, a->imag);
     float complex input = a->real + a->imag * I;
@@ -38,6 +38,7 @@ RustComplex ccexpf(const RustComplex* a) {
 
     float complex cout = cexpf(input);
     RustComplex rout = {.real=creal(cout), .imag=cimag(cout)};
+    a->real = creal(cout);
+    a->imag = cimag(cout);
     printf("cplx out: %f %fi\n", creal(cout), cimag(cout));
-    return rout;
 }
