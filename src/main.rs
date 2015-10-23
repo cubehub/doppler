@@ -31,6 +31,9 @@ use doppler::usage::DataType::{I16, F32};
 use doppler::dsp;
 
 // import external modules
+#[macro_use]
+extern crate log;
+extern crate fern;
 use std::process::exit;
 use std::io;
 use std::io::prelude::*;
@@ -46,24 +49,17 @@ use gpredict::tle;
 const SPEED_OF_LIGHT_M_S: f64 = 299792458.;
 const BUFFER_SIZE: usize = 8192;
 
-macro_rules! println_stderr(
-    ($($arg:tt)*) => (
-        match writeln!(&mut ::std::io::stderr(), $($arg)* ) {
-            Ok(_) => {},
-            Err(x) => panic!("Unable to write to stderr: {}", x),
-        }
-    )
-);
-
 fn main() {
+    setup_logger();
     let args = usage::args();
 
-    println_stderr!("doppler {} andres.vahter@gmail.com\n\n", env!("CARGO_PKG_VERSION"));
+    info!("doppler {} andres.vahter@gmail.com\n\n", env!("CARGO_PKG_VERSION"));
 
     let mut stdin = BufReader::with_capacity(BUFFER_SIZE*2, io::stdin());
     let mut stdout = BufWriter::new(io::stdout());
 
     let mut samplenr: u64 = 0;
+    let mut samplenr_ofs: u64 = 0;
 
     let mut shift = |intype: doppler::usage::DataType, shift_hz: f64, samplerate: u32| {
         let invec = stdin.by_ref().bytes().take(BUFFER_SIZE).collect::<Result<Vec<u8>,_>>().ok().expect("doppler collect error");
@@ -73,7 +69,7 @@ fn main() {
                 F32 => dsp::convert_iqf32_to_complex(&invec),
         };
 
-        let output = dsp::shift_frequency(&input, &mut samplenr, shift_hz, samplerate);
+        let output = dsp::shift_frequency(&input, &mut samplenr, &mut samplenr_ofs, shift_hz, samplerate);
 
         match *args.outputtype.as_ref().unwrap() {
             doppler::usage::DataType::I16 => {
@@ -89,28 +85,28 @@ fn main() {
                     outputi16.push(((q >> 8) & 0xFF) as u8);
                 }
 
-                stdout.write(&outputi16[..]).map_err(|e|{println_stderr!("doppler stdout.write error: {:?}", e)}).unwrap();
+                stdout.write(&outputi16[..]).map_err(|e|{info!("doppler stdout.write error: {:?}", e)}).unwrap();
             },
 
             doppler::usage::DataType::F32 => {
                 // * 8 because Complex<f32> is 8 bytes long
                 let slice = unsafe {slice::from_raw_parts(output.as_ptr() as *const _, (output.len() * 8))};
-                stdout.write(&slice).map_err(|e|{println_stderr!("doppler stdout.write error: {:?}", e)}).unwrap();
+                stdout.write(&slice).map_err(|e|{info!("doppler stdout.write error: {:?}", e)}).unwrap();
             },
         };
 
 
-        stdout.flush().map_err(|e|{println_stderr!("doppler stdout.flush error: {:?}", e)}).unwrap();
+        stdout.flush().map_err(|e|{info!("doppler stdout.flush error: {:?}", e)}).unwrap();
         (invec.len() != BUFFER_SIZE, output.len())
     };
 
     match *args.mode.as_ref().unwrap() {
         ConstMode => {
-            println_stderr!("constant shift mode");
-            println_stderr!("\tIQ samplerate   : {}", args.samplerate.as_ref().unwrap());
-            println_stderr!("\tIQ input type   : {}", args.inputtype.as_ref().unwrap());
-            println_stderr!("\tIQ output type  : {}\n", args.outputtype.as_ref().unwrap());
-            println_stderr!("\tfrequency shift : {} Hz", args.constargs.shift.as_ref().unwrap());
+            info!("constant shift mode");
+            info!("\tIQ samplerate   : {}", args.samplerate.as_ref().unwrap());
+            info!("\tIQ input type   : {}", args.inputtype.as_ref().unwrap());
+            info!("\tIQ output type  : {}\n", args.outputtype.as_ref().unwrap());
+            info!("\tfrequency shift : {} Hz", args.constargs.shift.as_ref().unwrap());
 
             let intype = args.inputtype.unwrap();
             let shift_hz = args.constargs.shift.unwrap() as f64;
@@ -126,18 +122,18 @@ fn main() {
 
 
         TrackMode => {
-            println_stderr!("tracking mode");
-            println_stderr!("\tIQ samplerate   : {}", args.samplerate.as_ref().unwrap());
-            println_stderr!("\tIQ input type   : {}", args.inputtype.as_ref().unwrap());
-            println_stderr!("\tIQ output type  : {}\n", args.outputtype.as_ref().unwrap());
-            println_stderr!("\tTLE file        : {}", args.trackargs.tlefile.as_ref().unwrap());
-            println_stderr!("\tTLE name        : {}", args.trackargs.tlename.as_ref().unwrap());
-            println_stderr!("\tlocation        : {:?}", args.trackargs.location.as_ref().unwrap());
+            info!("tracking mode");
+            info!("\tIQ samplerate   : {}", args.samplerate.as_ref().unwrap());
+            info!("\tIQ input type   : {}", args.inputtype.as_ref().unwrap());
+            info!("\tIQ output type  : {}\n", args.outputtype.as_ref().unwrap());
+            info!("\tTLE file        : {}", args.trackargs.tlefile.as_ref().unwrap());
+            info!("\tTLE name        : {}", args.trackargs.tlename.as_ref().unwrap());
+            info!("\tlocation        : {:?}", args.trackargs.location.as_ref().unwrap());
             if args.trackargs.time.is_some() {
-                println_stderr!("\ttime            : {:.3}", args.trackargs.time.unwrap().to_utc().rfc3339());
+                info!("\ttime            : {:.3}", args.trackargs.time.unwrap().to_utc().rfc3339());
             }
-            println_stderr!("\tfrequency       : {} Hz", args.trackargs.frequency.as_ref().unwrap());
-            println_stderr!("\toffset          : {} Hz\n\n\n", args.trackargs.offset.unwrap_or(0));
+            info!("\tfrequency       : {} Hz", args.trackargs.frequency.as_ref().unwrap());
+            info!("\toffset          : {} Hz\n\n\n", args.trackargs.offset.unwrap_or(0));
 
             let l = args.trackargs.location.unwrap();
             let location: predict::Location = predict::Location{lat_deg: l.lat, lon_deg: l.lon, alt_m: l.alt};
@@ -147,7 +143,7 @@ fn main() {
             let tle = match tle::create_tle_from_file(&tlename, &tlefile) {
                 Ok(t) => {t},
                 Err(e) => {
-                    println_stderr!("{}", e);
+                    info!("{}", e);
                     exit(1);
                 }
             };
@@ -172,12 +168,12 @@ fn main() {
                         dt = time::Duration::seconds((sample_count as f32 / samplerate as f32) as i64);
                         if start_time + dt - last_time >= time::Duration::seconds(5) {
                             last_time = start_time + dt;
-                            println_stderr!("time                : {:}", (start_time + dt).to_utc().rfc3339());
-                            println_stderr!("az                  : {:.2}°", predict.sat.az_deg);
-                            println_stderr!("el                  : {:.2}°", predict.sat.el_deg);
-                            println_stderr!("range               : {:.0} km", predict.sat.range_km);
-                            println_stderr!("range rate          : {:.3} km/sec", predict.sat.range_rate_km_sec);
-                            println_stderr!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f64 / 1000_000_f64, doppler_hz);
+                            info!("time                : {:}", (start_time + dt).to_utc().rfc3339());
+                            info!("az                  : {:.2}°", predict.sat.az_deg);
+                            info!("el                  : {:.2}°", predict.sat.el_deg);
+                            info!("range               : {:.0} km", predict.sat.range_km);
+                            info!("range rate          : {:.3} km/sec", predict.sat.range_rate_km_sec);
+                            info!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f64 / 1000_000_f64, doppler_hz);
                         }
 
                         let (stop, count): (bool, usize) = shift(intype, doppler_hz, samplerate);
@@ -196,12 +192,12 @@ fn main() {
 
                         if time::now_utc() - last_time >= time::Duration::seconds(1) {
                             last_time = time::now_utc();
-                            println_stderr!("time                : {:}", time::now_utc().to_utc().rfc3339());
-                            println_stderr!("az                  : {:.2}°", predict.sat.az_deg);
-                            println_stderr!("el                  : {:.2}°", predict.sat.el_deg);
-                            println_stderr!("range               : {:.0} km", predict.sat.range_km);
-                            println_stderr!("range rate          : {:.3} km/sec", predict.sat.range_rate_km_sec);
-                            println_stderr!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f64 / 1000_000_f64, doppler_hz);
+                            info!("time                : {:}", time::now_utc().to_utc().rfc3339());
+                            info!("az                  : {:.2}°", predict.sat.az_deg);
+                            info!("el                  : {:.2}°", predict.sat.el_deg);
+                            info!("range               : {:.0} km", predict.sat.range_km);
+                            info!("range rate          : {:.3} km/sec", predict.sat.range_rate_km_sec);
+                            info!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f64 / 1000_000_f64, doppler_hz);
                         }
 
                         let (stop, _): (bool, usize) = shift(intype, doppler_hz, samplerate);
@@ -212,5 +208,28 @@ fn main() {
                 }
             };
         }
+    }
+}
+
+fn setup_logger() {
+    let logger_config = fern::DispatchConfig {
+        format: Box::new(|msg: &str, level: &log::LogLevel, _location: &log::LogLocation| {
+            let t = time::now();
+            let ms = t.tm_nsec/1000_000;
+            let path = _location.__module_path;
+            let line = _location.__line;
+
+            format!("{}.{:3} [{:<6} {:<30} {:>3}]  {}",
+                    t.strftime("%Y-%m-%dT%H:%M:%S")
+                     .unwrap_or_else(|err| panic!("strftime format error: {}", err)),
+                    ms, level, path, line, msg)
+        }),
+        output: vec![fern::OutputConfig::stderr()],
+        level: log::LogLevelFilter::Debug,
+        directives: vec!()
+    };
+
+    if let Err(e) = fern::init_global_logger(logger_config, log::LogLevelFilter::Trace) {
+        panic!("Failed to initialize global logger: {}", e);
     }
 }
