@@ -120,7 +120,7 @@ pub fn args() -> CommandArgs {
     let matches = App::new("doppler")
                 .author("Andres Vahter <andres.vahter@gmail.com>")
                 .version(env!("CARGO_PKG_VERSION"))
-                .about("Compensates IQ data stream doppler shift based on TLE information and constant shift for IQ data is also possible.")
+                .about("Compensates IQ data stream doppler shift based on TLE information, also can be used for doing constant baseband shifting")
 
 
                 .subcommand(SubCommand::new("const")
@@ -301,8 +301,8 @@ pub fn args() -> CommandArgs {
                 match tm {
                     Ok(_) => {},
                     Err(e) => {
-                        println!("{}.", e);
-                        println!("--time should be defined in Y-m-dTH:M:S format: eg. 2015-05-13T14:28:48");
+                        error!("{}.", e);
+                        error!("--time should be defined in Y-m-dTH:M:S format: eg. 2015-05-13T14:28:48");
                         exit(1);
                     },
                 };
@@ -318,13 +318,16 @@ pub fn args() -> CommandArgs {
             match location {
                 Ok(loc) => { args.trackargs.location = Some(loc);},
                 Err(e) => {
-                    println!("{}.", e);
+                    error!("{}.", e);
                     exit(1);
                 }
             }
         },
 
-        _ => unreachable!()
+        _ => {
+            info!("no arguments provided, try with doppler -h");
+            exit(1);
+        }
     }
 
     args
