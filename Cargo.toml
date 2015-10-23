@@ -1,6 +1,6 @@
 [package]
 name = "doppler"
-version = "1.1.4"
+version = "1.1.5"
 authors = ["Andres Vahter <andres.vahter@gmail.com>"]
 build = "build.rs"
 
@@ -9,12 +9,16 @@ clap = "*"
 libc = "*"
 time = "*"
 num = "*"
+log = "*"
 
 [dependencies.gpredict]
 git = "https://github.com/cubehub/rust-gpredict.git"
 
 [dependencies.liquid_dsp]
 git = "https://github.com/cubehub/rust-liquid-dsp.git"
+
+[dependencies.fern]
+git = "https://github.com/marjakm/fern-rs.git"
 
 [build-dependencies]
 gcc = "0.3"
