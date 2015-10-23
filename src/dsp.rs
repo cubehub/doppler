@@ -26,6 +26,7 @@ use liquid_dsp::LiquidComplex32;
 
 use num::complex::Complex;
 use std::mem;
+use std::ops::Rem;
 
 // Rust does not support C complex numbers in the same way on 32 and 64 bit platforms:
 // https://github.com/rust-lang/rfcs/issues/793
@@ -114,11 +115,11 @@ pub fn convert_iqf32_to_complex(inbuf: &[u8]) -> Vec<Complex<f32>> {
     output
 }
 
-pub fn shift_frequency(inbuf: &[Complex<f32>], samplenum: &mut u64, shift_hz: f64, samplerate: u32) -> Vec<Complex<f32>> {
+pub fn shift_frequency(inbuf: &[Complex<f32>], samplenum: &mut u64, samplenum_ofs: &mut u64, shift_hz: f64, samplerate: u32) -> Vec<Complex<f32>> {
     let mut output = Vec::<Complex<f32>>::with_capacity(inbuf.len());
 
     for sample in inbuf {
-        let mut corrector = Complex::<f32>::new(0.0, -2. * PI * (shift_hz as f64 / samplerate as f64 * *samplenum as f64) as f32);
+        let mut corrector = Complex::<f32>::new(0.0, -2. * PI * (shift_hz / samplerate as f64 * (*samplenum + *samplenum_ofs) as f64) as f32);
         unsafe { ccexpf(mem::transmute(&mut corrector))};
 
         output.push(sample * corrector);
@@ -126,15 +127,8 @@ pub fn shift_frequency(inbuf: &[Complex<f32>], samplenum: &mut u64, shift_hz: f6
     }
 
     // if samplenum grows too big it introduses noise in floating point math therefore samplenum should be zeroed
-
-    // zero after evey period does not work with AX25 decoding, however FM audio is nice
-    // there must be some kind of error here:
-    // if *samplenum as f32 > samplerate as f32 / shift_hz as f32 {
-    //     *samplenum = 0
-    // }
-
-    // ... so use this instead:
-    if *samplenum > 1_000_000 {
+    if (*samplenum + *samplenum_ofs) as f64 * shift_hz >= samplerate as f64 {
+        *samplenum_ofs = (((*samplenum + *samplenum_ofs) as f64 * shift_hz).rem(samplerate as f64) / shift_hz) as u64;
         *samplenum = 0;
     }
 
