@@ -176,7 +176,7 @@ fn main() {
                             info!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f64 / 1000_000_f64, doppler_hz);
                         }
 
-                        let (stop, count): (bool, usize) = shift(intype, doppler_hz, samplerate);
+                        let (stop, count): (bool, usize) = shift(intype, doppler_hz + args.trackargs.offset.unwrap_or(0) as f64, samplerate);
                         if stop {
                             break;
                         }
@@ -200,7 +200,7 @@ fn main() {
                             info!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f64 / 1000_000_f64, doppler_hz);
                         }
 
-                        let (stop, _): (bool, usize) = shift(intype, doppler_hz, samplerate);
+                        let (stop, _): (bool, usize) = shift(intype, doppler_hz + args.trackargs.offset.unwrap_or(0) as f64, samplerate);
                         if stop {
                             break;
                         }
