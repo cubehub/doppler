@@ -1,6 +1,6 @@
 [package]
 name = "doppler"
-version = "1.1.7"
+version = "1.1.8"
 authors = ["Andres Vahter <andres.vahter@gmail.com>"]
 build = "build.rs"
 
@@ -21,4 +21,4 @@ git = "https://github.com/cubehub/rust-liquid-dsp.git"
 git = "https://github.com/marjakm/fern-rs.git"
 
 [build-dependencies]
-gcc = "0.3"
+gcc = "*"
