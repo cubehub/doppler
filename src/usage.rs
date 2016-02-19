@@ -55,7 +55,7 @@ impl fmt::Display for DataType {
 pub struct Location {
     pub lat: f64,
     pub lon: f64,
-    pub alt: i32,
+    pub alt: f64,
 }
 
 pub struct ConstModeArgs {
@@ -88,7 +88,7 @@ fn parse_location(location: &str) -> Result<Location, String> {
 
         let mut lat: Option<f64> = None;
         let mut lon: Option<f64> = None;
-        let mut alt: Option<i32> = None;
+        let mut alt: Option<f64> = None;
 
         for s in split {
             if s.contains("lat") && s.contains("=") {
@@ -98,7 +98,7 @@ fn parse_location(location: &str) -> Result<Location, String> {
                 lon = s.split("=").nth(1).unwrap().parse::<f64>().ok();
             }
             else if s.contains("alt") && s.contains("=") {
-                alt = s.split("=").nth(1).unwrap().parse::<i32>().ok();
+                alt = s.split("=").nth(1).unwrap().parse::<f64>().ok();
             }
         }
 

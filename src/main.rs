@@ -43,8 +43,7 @@ use std::slice;
 
 extern crate time;
 extern crate gpredict;
-use gpredict::predict;
-use gpredict::tle;
+use gpredict::{Predict, Tle, Location};
 
 const SPEED_OF_LIGHT_M_S: f64 = 299792458.;
 const BUFFER_SIZE: usize = 8192;
@@ -136,11 +135,11 @@ fn main() {
             info!("\toffset          : {} Hz\n\n\n", args.trackargs.offset.unwrap_or(0));
 
             let l = args.trackargs.location.unwrap();
-            let location: predict::Location = predict::Location{lat_deg: l.lat, lon_deg: l.lon, alt_m: l.alt};
+            let location: Location = Location{lat_deg: l.lat, lon_deg: l.lon, alt_m: l.alt};
             let tlename = args.trackargs.tlename.as_ref().unwrap();
             let tlefile = args.trackargs.tlefile.as_ref().unwrap();
 
-            let tle = match tle::create_tle_from_file(&tlename, &tlefile) {
+            let tle = match Tle::from_file(&tlename, &tlefile) {
                 Ok(t) => {t},
                 Err(e) => {
                     info!("{}", e);
@@ -148,7 +147,7 @@ fn main() {
                 }
             };
 
-            let mut predict: predict::Predict = predict::Predict::new(&tle, &location);
+            let mut predict: Predict = Predict::new(&tle, &location);
             let intype = args.inputtype.unwrap();
 
             let samplerate = args.samplerate.unwrap();
