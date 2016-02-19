@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-use clap::{App, Arg, SubCommand};
+use clap::{App, AppSettings, Arg, SubCommand};
 use time;
 use self::DataType::{F32, I16};
 use self::Mode::{ConstMode, TrackMode};
@@ -123,7 +123,8 @@ pub fn args() -> CommandArgs {
                 .about("Compensates IQ data stream doppler shift based on TLE information, also can be used for doing constant baseband shifting")
 
 
-                .subcommand(SubCommand::new("const")
+                .subcommand(SubCommand::with_name("const")
+                    .setting(AppSettings::AllowLeadingHyphen) // allow negative values like --shift -5000
                     .about("Constant shift mode")
 
                     .arg(Arg::with_name("SAMPLERATE")
@@ -156,7 +157,8 @@ pub fn args() -> CommandArgs {
                        .takes_value(true)))
 
 
-                .subcommand(SubCommand::new("track")
+                .subcommand(SubCommand::with_name("track")
+                    .setting(AppSettings::AllowLeadingHyphen) // allow negative values like --offset -5000
                     .about("Doppler tracking mode")
 
                     .arg(Arg::with_name("SAMPLERATE")
