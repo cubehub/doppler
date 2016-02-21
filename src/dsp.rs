@@ -133,3 +133,26 @@ pub fn shift_frequency(inbuf: &[Complex<f32>], samplenum: &mut u64, shift_hz: f6
 
     output
 }
+
+#[test]
+fn test_bench_shift_frequency() {
+    // use as:
+    // cargo test test_bench_shift_frequency -- release
+
+    let mut samplenr: u64 = 0;
+    let shift_hz: f64 = 815000.0;
+    let samplerate: u32 = 2400000;
+
+    let input: [u8; 1_000_000] = [0xAA; 1_000_000];
+    let complex_input = convert_iqf32_to_complex(&input);
+
+    let mut iterator = 0;
+    loop {
+        shift_frequency(&complex_input, &mut samplenr, shift_hz, samplerate);
+
+        iterator += 1;
+        if iterator > 300 {
+            break;
+        }
+    }
+}
