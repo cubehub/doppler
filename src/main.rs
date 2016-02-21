@@ -57,9 +57,9 @@ fn main() {
     let mut stdin = BufReader::with_capacity(BUFFER_SIZE*2, io::stdin());
     let mut stdout = BufWriter::new(io::stdout());
 
-    let mut samplenr: u64 = 0;
+    let mut samplenr: u32 = 0;
 
-    let mut shift = |intype: doppler::usage::DataType, shift_hz: f64, samplerate: u32| {
+    let mut shift = |intype: doppler::usage::DataType, shift_hz: f32, samplerate: u32| {
         let invec = stdin.by_ref().bytes().take(BUFFER_SIZE).collect::<Result<Vec<u8>,_>>().ok().expect("doppler collect error");
 
         let input = match intype {
@@ -107,7 +107,7 @@ fn main() {
             info!("\tfrequency shift : {} Hz", args.constargs.shift.as_ref().unwrap());
 
             let intype = args.inputtype.unwrap();
-            let shift_hz = args.constargs.shift.unwrap() as f64;
+            let shift_hz = args.constargs.shift.unwrap() as f32;
             let samplerate = args.samplerate.unwrap();
 
             loop {
@@ -160,7 +160,7 @@ fn main() {
 
                     loop {
                         predict.update(Some(start_time + dt));
-                        let doppler_hz = (predict.sat.range_rate_km_sec * 1000 as f64 / SPEED_OF_LIGHT_M_S as f64) * args.trackargs.frequency.unwrap() as f64 * (-1.0);
+                        let doppler_hz = (predict.sat.range_rate_km_sec * 1000_f64 / SPEED_OF_LIGHT_M_S) * args.trackargs.frequency.unwrap() as f64 * (-1.0);
 
                         // advance time based on how many samples are read in
                         dt = time::Duration::seconds((sample_count as f32 / samplerate as f32) as i64);
@@ -171,10 +171,10 @@ fn main() {
                             info!("el                  : {:.2}°", predict.sat.el_deg);
                             info!("range               : {:.0} km", predict.sat.range_km);
                             info!("range rate          : {:.3} km/sec", predict.sat.range_rate_km_sec);
-                            info!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f64 / 1000_000_f64, doppler_hz);
+                            info!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f32 / 1000_000_f32, doppler_hz);
                         }
 
-                        let (stop, count): (bool, usize) = shift(intype, doppler_hz + args.trackargs.offset.unwrap_or(0) as f64, samplerate);
+                        let (stop, count): (bool, usize) = shift(intype, doppler_hz as f32 + args.trackargs.offset.unwrap_or(0) as f32, samplerate);
                         if stop {
                             break;
                         }
@@ -186,7 +186,7 @@ fn main() {
                 None => {
                     loop {
                         predict.update(None);
-                        let doppler_hz = (predict.sat.range_rate_km_sec * 1000 as f64 / SPEED_OF_LIGHT_M_S as f64) * args.trackargs.frequency.unwrap() as f64 * (-1.0);
+                        let doppler_hz = (predict.sat.range_rate_km_sec * 1000_f64 / SPEED_OF_LIGHT_M_S) * args.trackargs.frequency.unwrap() as f64 * (-1.0);
 
                         if time::now_utc() - last_time >= time::Duration::seconds(1) {
                             last_time = time::now_utc();
@@ -195,10 +195,10 @@ fn main() {
                             info!("el                  : {:.2}°", predict.sat.el_deg);
                             info!("range               : {:.0} km", predict.sat.range_km);
                             info!("range rate          : {:.3} km/sec", predict.sat.range_rate_km_sec);
-                            info!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f64 / 1000_000_f64, doppler_hz);
+                            info!("doppler@{:.3} MHz : {:.2} Hz\n", args.trackargs.frequency.unwrap() as f32 / 1000_000_f32, doppler_hz);
                         }
 
-                        let (stop, _): (bool, usize) = shift(intype, doppler_hz + args.trackargs.offset.unwrap_or(0) as f64, samplerate);
+                        let (stop, _): (bool, usize) = shift(intype, doppler_hz as f32 + args.trackargs.offset.unwrap_or(0) as f32, samplerate);
                         if stop {
                             break;
                         }

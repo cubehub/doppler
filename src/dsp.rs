@@ -114,15 +114,15 @@ pub fn convert_iqf32_to_complex(inbuf: &[u8]) -> Vec<Complex<f32>> {
     output
 }
 
-pub fn shift_frequency(inbuf: &[Complex<f32>], samplenum: &mut u64, shift_hz: f64, samplerate: u32) -> Vec<Complex<f32>> {
+pub fn shift_frequency(inbuf: &[Complex<f32>], samplenum: &mut u32, shift_hz: f32, samplerate: u32) -> Vec<Complex<f32>> {
     let mut output = Vec::<Complex<f32>>::with_capacity(inbuf.len());
 
     for sample in inbuf {
-        let mut corrector = Complex::<f32>::new(0.0, -2. * PI * (shift_hz / samplerate as f64 * (*samplenum) as f64) as f32);
+        let mut corrector = Complex::<f32>::new(0.0, -2. * PI * (shift_hz / samplerate as f32 * (*samplenum) as f32) as f32);
         unsafe { ccexpf(mem::transmute(&mut corrector))};
         output.push(sample * corrector);
 
-        if (shift_hz / samplerate as f64 * *samplenum as f64).fract() == 0.0 {
+        if (shift_hz / samplerate as f32 * *samplenum as f32).fract() == 0.0 {
             *samplenum = 1;
         }
         else {
@@ -138,8 +138,8 @@ fn test_bench_shift_frequency() {
     // use as:
     // cargo test test_bench_shift_frequency -- release
 
-    let mut samplenr: u64 = 0;
-    let shift_hz: f64 = 815000.0;
+    let mut samplenr: u32 = 0;
+    let shift_hz: f32 = 815000.0;
     let samplerate: u32 = 2400000;
 
     let input: [u8; 1_000_000] = [0xAA; 1_000_000];
