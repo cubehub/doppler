@@ -26,7 +26,6 @@ use liquid_dsp::LiquidComplex32;
 
 use num::complex::Complex;
 use std::mem;
-use std::ops::Rem;
 
 // Rust does not support C complex numbers in the same way on 32 and 64 bit platforms:
 // https://github.com/rust-lang/rfcs/issues/793
