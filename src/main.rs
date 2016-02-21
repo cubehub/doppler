@@ -58,7 +58,6 @@ fn main() {
     let mut stdout = BufWriter::new(io::stdout());
 
     let mut samplenr: u64 = 0;
-    let mut samplenr_ofs: u64 = 0;
 
     let mut shift = |intype: doppler::usage::DataType, shift_hz: f64, samplerate: u32| {
         let invec = stdin.by_ref().bytes().take(BUFFER_SIZE).collect::<Result<Vec<u8>,_>>().ok().expect("doppler collect error");
@@ -68,7 +67,7 @@ fn main() {
                 F32 => dsp::convert_iqf32_to_complex(&invec),
         };
 
-        let output = dsp::shift_frequency(&input, &mut samplenr, &mut samplenr_ofs, shift_hz, samplerate);
+        let output = dsp::shift_frequency(&input, &mut samplenr, shift_hz, samplerate);
 
         match *args.outputtype.as_ref().unwrap() {
             doppler::usage::DataType::I16 => {

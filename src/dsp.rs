@@ -115,21 +115,20 @@ pub fn convert_iqf32_to_complex(inbuf: &[u8]) -> Vec<Complex<f32>> {
     output
 }
 
-pub fn shift_frequency(inbuf: &[Complex<f32>], samplenum: &mut u64, samplenum_ofs: &mut u64, shift_hz: f64, samplerate: u32) -> Vec<Complex<f32>> {
+pub fn shift_frequency(inbuf: &[Complex<f32>], samplenum: &mut u64, shift_hz: f64, samplerate: u32) -> Vec<Complex<f32>> {
     let mut output = Vec::<Complex<f32>>::with_capacity(inbuf.len());
 
     for sample in inbuf {
-        let mut corrector = Complex::<f32>::new(0.0, -2. * PI * (shift_hz / samplerate as f64 * (*samplenum + *samplenum_ofs) as f64) as f32);
+        let mut corrector = Complex::<f32>::new(0.0, -2. * PI * (shift_hz / samplerate as f64 * (*samplenum) as f64) as f32);
         unsafe { ccexpf(mem::transmute(&mut corrector))};
-
         output.push(sample * corrector);
-        *samplenum += 1;
-    }
 
-    // if samplenum grows too big it introduses noise in floating point math therefore samplenum should be zeroed
-    if (*samplenum + *samplenum_ofs) as f64 * shift_hz >= samplerate as f64 {
-        *samplenum_ofs = (((*samplenum + *samplenum_ofs) as f64 * shift_hz).rem(samplerate as f64) / shift_hz) as u64;
-        *samplenum = 0;
+        if (shift_hz / samplerate as f64 * *samplenum as f64).fract() == 0.0 {
+            *samplenum = 1;
+        }
+        else {
+            *samplenum += 1;
+        }
     }
 
     output
