@@ -200,6 +200,7 @@ pub fn args() -> CommandArgs {
                        .long("location")
                        .help("Observer location (lat=<deg>,lon=<deg>,alt=<m>): eg. lat=58.64560,lon=23.15163,alt=8")
                        .required(true)
+                       .use_delimiter(false)
                        .takes_value(true))
 
                     .arg(Arg::with_name("TIME")
