@@ -6,6 +6,9 @@ Firstly it was written in C ([last commit to C version](https://github.com/cubeh
 ### libgpredict
 Follow install instructions from here: https://github.com/cubehub/libgpredict
 
+### xcode command line tools (only for Mac OS X)
+    xcode-select --install
+
 ### rust
 http://www.rust-lang.org/install.html
 
