@@ -3,46 +3,55 @@ Command line utility that takes IQ data stream as input and produces doppler cor
 Firstly it was written in C ([last commit to C version](https://github.com/cubehub/doppler/commit/e6df4d271ece09a88b8dba9b054bb10bdcb996ce)), however now it is rewritten in [rust](http://www.rust-lang.org).
 
 ## dependencies
-### libgpredict
+#### mac os x
+    xcode-select --install
+    brew install autoconf
+    brew install automake
+
+#### linux
+    sudo apt-get install autoconf
+
+#### libgpredict
 Follow install instructions from here: https://github.com/cubehub/libgpredict
 
-### xcode command line tools (only for Mac OS X)
-    xcode-select --install
+#### [liquid-dsp](https://github.com/jgaeddert/liquid-dsp)
+    git clone git://github.com/jgaeddert/liquid-dsp.git
+    cd liquid-dsp
+    ./bootstrap.sh
+    ./configure
+    make
+    sudo make install
 
-### rust
+#### rust
 http://www.rust-lang.org/install.html
 
     curl -sSf https://static.rust-lang.org/rustup.sh | sh
 
 ## build
-
     git clone https://github.com/cubehub/doppler.git
     cd doppler
     cargo build --release
 
 ## install
-### mac os x
-
+#### mac os x
     cp target/release/doppler /usr/local/bin/
 
-### linux
-
+#### linux
     sudo cp target/release/doppler /usr/local/bin/
 
 ## usage
-### help
-
+#### help
     doppler -h
     doppler track -h
     doppler const -h
 
-### realtime
+#### realtime
 Do realtime doppler correction to ESTCube-1 satellite that transmits on 437.505 MHz and write output to a file.
 Notice that `rtl_sdr` is tuned to 437.500 MHz, but ESTCube-1 transmits on 437.505 MHz, therefore 5000 Hz constant offset correction is also added with `--offset` parameter. It can be omitted if there is no offset.
 
     rtl_sdr -f 437500000 -s 1024000 -g 20 - | doppler track -s 1024000 -i i16 --tlefile cubesat.txt --tlename 'ESTCUBE 1' --location lat=58.26541,lon=26.46667,alt=76 --frequency 437505000 --offset 5000 > zero.iq
 
-### recording
+#### recording
 Do doppler correction to a file that is recorded before. For example someone has recorded an overpass and you would like to convert it to another file where doppler compensation has been made.
 If parameter `--time` is specified it does doppler correction based on this time instead of real time. It denotes start time of the recording in UTC.
 
@@ -52,7 +61,7 @@ If parameter `--time` is specified it does doppler correction based on this time
 
 Notice that if dealing with old files you also have to use TLEs from that day, otherwise doppler correction result might be off. Here offset compensation of -2500 Hz is used only for example purposes.
 
-### baseband shifting
+#### baseband shifting
 It is also possible to just shift baseband signal "left" or "right" using `const` mode. In this example input signal has float IQ data format therefore `-i f32` is used. However output is automatically converted to int16 IQ data format.
 
     cat baseband_256000sps_f32.iq | doppler const -s 256000 -i f32 --shift -15000 > shifted_baseband_256000sps_i16.iq
