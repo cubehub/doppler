@@ -47,9 +47,10 @@ http://www.rust-lang.org/install.html
 
 #### realtime
 Do realtime doppler correction to ESTCube-1 satellite that transmits on 437.505 MHz and write output to a file.
-Notice that `rtl_sdr` is tuned to 437.500 MHz, but ESTCube-1 transmits on 437.505 MHz, therefore 5000 Hz constant offset correction is also added with `--offset` parameter. It can be omitted if there is no offset.
+Notice that `rtl_fm` is tuned to 437.500 MHz, but ESTCube-1 transmits on 437.505 MHz, therefore 5000 Hz constant offset correction is also added with `--offset` parameter. It can be omitted if there is no offset.
 
-    rtl_sdr -f 437500000 -s 1024000 -g 20 - | doppler track -s 1024000 -i i16 --tlefile cubesat.txt --tlename 'ESTCUBE 1' --location lat=58.26541,lon=26.46667,alt=76 --frequency 437505000 --offset 5000 > zero.iq
+
+    rtl_fm -f 437.5M -s 1024000 -g 20 -M raw - | doppler track -s 1024000 -i i16 --tlefile cubesat.txt --tlename 'ESTCUBE 1' --location lat=58.26541,lon=26.46667,alt=76 --frequency 437505000 --offset 5000 > zero.iq
 
 #### recording
 Do doppler correction to a file that is recorded before. For example someone has recorded an overpass and you would like to convert it to another file where doppler compensation has been made.
@@ -62,6 +63,6 @@ If parameter `--time` is specified it does doppler correction based on this time
 Notice that if dealing with old files you also have to use TLEs from that day, otherwise doppler correction result might be off. Here offset compensation of -2500 Hz is used only for example purposes.
 
 #### baseband shifting
-It is also possible to just shift baseband signal "left" or "right" using `const` mode. In this example input signal has float IQ data format therefore `-i f32` is used. However output is automatically converted to int16 IQ data format.
+It is also possible to just shift baseband signal "left" or "right" using `const` mode. In this example input signal has float IQ data format therefore `-i f32` is used. However output is converted to int16 IQ data format using `-o i16`.
 
-    cat baseband_256000sps_f32.iq | doppler const -s 256000 -i f32 --shift -15000 > shifted_baseband_256000sps_i16.iq
+    cat baseband_256000sps_f32.iq | doppler const -s 256000 -i f32 --shift -15000 -o i16 > shifted_baseband_256000sps_i16.iq
