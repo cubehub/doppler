@@ -88,7 +88,7 @@ fn main() {
 
             doppler::usage::DataType::F32 => {
                 // * 8 because Complex<f32> is 8 bytes long
-                let slice = unsafe {slice::from_raw_parts(output.as_ptr() as *const _, (output.len() * 8))};
+                let slice = unsafe {slice::from_raw_parts(output.as_ptr() as *const _, output.len() * 8)};
                 stdout.write(&slice).map_err(|e|{info!("doppler stdout.write error: {:?}", e)}).unwrap();
             },
         };
